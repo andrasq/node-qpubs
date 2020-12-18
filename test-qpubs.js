@@ -172,10 +172,25 @@ module.exports = {
             uut.listen('some.third.longish.route', function(){ ncalls += 1 });
             uut.listen('some.even.longer.longish.route', function(){ ncalls += 1 });
             var nloops = 100000;
-            console.time('mark');
+            console.time(nloops + ' emits');
             for (var i=0; i<nloops; i++) uut.emit('some.other.longish.route', 1);
-            console.timeEnd('mark');
-            // this dumb benchmark is 3x faster if routes are hashed by length
+            console.timeEnd(nloops + ' emits');
+            // 23ms, this dumb benchmark is 3x faster if routes are hashed by length
+            t.equal(ncalls, nloops);
+            t.done();
+        },
+        'it compared to events': function(t) {
+            var ncalls = 0;
+            var ee = new (require('events')).EventEmitter();
+            ee.on('some.longish.route', function(){ ncalls += 1 });
+            ee.on('some.other.longish.route', function(){ ncalls += 1 });
+            ee.on('some.third.longish.route', function(){ ncalls += 1 });
+            ee.on('some.even.longer.longish.route', function(){ ncalls += 1 });
+            var nloops = 100000;
+            console.time(nloops + ' EE.emit');
+            for (var i=0; i<nloops; i++) ee.emit('some.other.longish.route', 1);
+            console.timeEnd(nloops + ' EE.emit');
+            // 3.6ms, 6.4x faster
             t.equal(ncalls, nloops);
             t.done();
         },

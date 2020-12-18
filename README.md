@@ -1,9 +1,59 @@
 qpubs
 =====
 
-Simple, light-weight pub-sub library and service modeled on Nodejs event emitters.
+Simple, light-weight pub-sub engine modeled on Nodejs event emitters.
+
+Summary
+-------
+
+    var pubs = new QPubs({ separator: '.' });
+    pubs.listen('my.event', function(message) {
+        console.log('message == %s', message);
+        // => message == 42,
+        //    message == 451
+    })
+    pubs.listen('your.*', function(msg) {
+        console.log('msg == %s', msg);
+        // => msg == 77
+    })
+    pubs.listen('*.event', function(ev) {
+        console.log('ev == %s', ev);
+        // => ev == 42
+        //    ev == 77
+        //    ev == 451
+    })
+    pubs.emit('my.event', 42);
+    pubs.emit('your.event', 77);
+    pubs.emit('my.event', 451);
 
 
+Api
+---
+
+### new QPubs( [options] )
+
+Construct and configure a pubsub engine.
+
+Options:
+- `separator` - string that separates route components.  Default is a `.` dot.
+
+### listen( route, callback )
+
+Listen for messages published on the named `route`.  Each message is passed to the callback when
+it is received.  The wildcard `*` matches all leading or trailing route components (but not
+both).  Route components are separated by the `separator` string passed to the constructor.
+
+### emit( route, message )
+
+Send the `message` to all the listeners listening on the route.
+
+### ignore( route, callback )
+
+Make the callback stop receiving messages from the specified route.  If `listen()` was called
+multiple times for this route with this callback, each `ignore()` undoes one listen.
+
+
+<!--
 Features
 --------
 
@@ -13,18 +63,6 @@ Features
   (ie, messages do not disappear during a crash)
 - routes are strings
 - wildcard `*` prefix / suffix route component matching
-
-
-Library Api
------------
-
-### listen( name, callback )
-
-### emit( name, value [,callback] )
-
-### once( name, callback )
-
-### ignore( name, callback )
 
 
 Service Api
@@ -38,10 +76,10 @@ Service Api
 
 ### Server Http Routes
 
-- /listen?name
-- /once?name
-- /ignore?name
-- /emit?name,value
+- /listen?route
+- /once?route
+- /ignore?route
+- /emit?route,value
 
 ### Server Qrpc Routes
 
@@ -50,7 +88,7 @@ Service Api
             console.log("received message:", msg);
             // => "received message: test message"
         })
-        qrpc.call('emit', name, function(err) {
+        qrpc.call('emit', route, function(err) {
             // message sent
         })
     }
@@ -71,3 +109,11 @@ Design Notes
 - acknowledge emit call after checkpoint
 - messages are matched by a prefix/suffix matcher (build two matching regexes, keep in prefix hash/suffix hash)
 - need a source of very very fast ids, ?faster than mongoid-js? (internal to the server, for call tracking -- use the message id?)
+-->
+
+
+Changelog
+---------
+
+- 0.0.3 - hash routes by length
+- 0.0.2 - working version
