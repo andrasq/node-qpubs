@@ -43,9 +43,10 @@ Listen for messages published on the named `route`.  Each message is passed to t
 it is received.  The wildcard `*` matches all leading or trailing route components (but not
 both).  Route components are separated by the `separator` string passed to the constructor.
 
-### emit( route, message )
+### emit( route, message [,callback(err)] )
 
-Send the `message` to all the listeners listening on the route.
+Send the `message` to all the listeners listening on the route.  If a `callback` is given,
+it will be invoked once all recipients have received their copy of the message.
 
 ### ignore( route, callback )
 
@@ -112,8 +113,14 @@ Design Notes
 -->
 
 
+Todo
+----
+
+- support callbacked notifications too
+
+
 Changelog
 ---------
 
-- 0.0.3 - hash routes by length
+- 0.0.3 - hash routes by length, callback on emit()
 - 0.0.2 - working version

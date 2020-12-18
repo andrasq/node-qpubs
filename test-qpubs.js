@@ -54,6 +54,17 @@ module.exports = {
             t.deepEqual(this.calls, [1, 23]);
             t.done();
         },
+        'callback is invoked': function(t) {
+            this.uut.listen('foo.bar', this.fn);
+            this.uut.listen('foo.*', this.fn);
+            var calls = this.calls;
+            this.uut.emit('foo.bar', 1, function(err) {
+                t.equal(err, null);
+                t.deepEqual(calls, [1, 1]);
+                t.done();
+            });
+            this.uut.emit('foo.bar', 2);
+        },
         'calls prefix listener': function(t) {
             this.uut.listen('foo.*', this.fn);
             this.uut.emit('foo', 11);           // not matched: foo.* not matched by foo
