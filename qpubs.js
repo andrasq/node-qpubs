@@ -75,6 +75,8 @@ QPubs.prototype._listenEmit = function _listenEmit( store, route, ix, value ) {
     var partial = ix >= 0 ? (ix === route.length ? route : route.slice(0, ix)) : route.slice(ix);
     var list = hash[partial];
     if (list) for (var i=0; i<list.length; i++) list[i](value);
+    // TODO: pass in callback, wait for all listeners to acknowledge, call callback
+    // TODO: if (list[i].length === 2) wait for the func to call its callback
 }
 
 QPubs.prototype.ignore = function ignore( route, func ) {

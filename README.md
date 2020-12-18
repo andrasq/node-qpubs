@@ -32,25 +32,26 @@ Api
 
 ### new QPubs( [options] )
 
-Construct and configure a pubsub engine.
+Construct and configure the pubsub engine.
 
 Options:
 - `separator` - string that separates route components.  Default is a `.` dot.
 
-### listen( route, callback )
+### listen( route, listener(message) )
 
-Listen for messages published on the named `route`.  Each message is passed to the callback when
-it is received.  The wildcard `*` matches all leading or trailing route components (but not
-both).  Route components are separated by the `separator` string passed to the constructor.
+Listen for messages published on the named `route`.  Each received message is passed to all
+interested `listener()`-s.  The wildcard `*` matches all leading or trailing route components
+(but not both).  Route components are separated by the `separator` string passed to the
+constructor.
 
 ### emit( route, message [,callback(err)] )
 
 Send the `message` to all the listeners listening on the route.  If a `callback` is given,
-it will be invoked once all recipients have received their copy of the message.
+it will be invoked once all recipients have seen the message.
 
 ### ignore( route, callback )
 
-Make the callback stop receiving messages from the specified route.  If `listen()` was called
+Make the callback stop receiving messages from the given `route`.  If `listen()` was called
 multiple times for this route with this callback, each `ignore()` undoes one listen.
 
 
