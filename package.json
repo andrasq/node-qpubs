@@ -1,0 +1,27 @@
+{
+  "name": "qpubs",
+  "version": "0.0.2",
+  "description": "lean pub-sub engine",
+  "license": "Apache-2.0",
+  "author": "andrasq",
+  "main": "qpubs.js",
+
+  "repository": {"type": "git", "url": "git://github.com/andrasq/node-qpubs"},
+  "files": ["qubs.js", "README.md"],
+  "readme": "see README.md in the repo",
+
+  "XX_dependencies": {
+    "qfputs": "1.8.0",
+    "qibl": "1.7.3",
+    "qrpc": "1.1.6"
+  },
+  "devDependencies": {
+    "qnit": "0.31.0"
+  },
+
+  "scripts": {
+    "test": "qnit test-*",
+    "coverage": "nyc -r text -r lcov qnit test-*",
+    "clean": "rm -rf .nyc_output coverage"
+  }
+}
