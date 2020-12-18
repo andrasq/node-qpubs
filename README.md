@@ -123,5 +123,6 @@ Todo
 Changelog
 ---------
 
+- 0.0.4 - wildcard match empty leading/trailing route components
 - 0.0.3 - hash routes by length, callback on emit()
 - 0.0.2 - working version

@@ -43,14 +43,10 @@ QPubs.prototype.emit = function emit( route, value, callback ) {
     var ix = 0, ix2, sep = this.separator;
     this._listenEmit(this.routeListeners, route, route.length, value);
     while ((ix2 = route.indexOf(sep, ix)) >= 0) {
-        var prefLength = ix2, suffLength = route.length - ix2 - sep.length;
-// FIXME: is an empty prefix/suffix route component valid, or only non-empty?  I.e., should foo.* match 'foo.'?
-        if (prefLength) this._listenEmit(this.headListeners, route, ix2 + sep.length, value);
-        if (suffLength) this._listenEmit(this.tailListeners, route, -(route.length - ix2), value);
+        this._listenEmit(this.headListeners, route, ix2 + sep.length, value);
+        this._listenEmit(this.tailListeners, route, -(route.length - ix2), value);
         ix = ix2 + sep.length;
     }
-// FIXME: is this final emit needed or not? (guessing not)
-//    if (ix2 + sep.length < route.length) this._listenEmit(this.headListeners, route, route.length, value);
     callback && callback();
 }
 

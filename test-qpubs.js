@@ -102,6 +102,18 @@ module.exports = {
                 t.deepEqual(this.calls, [2]);
                 t.done();
             },
+            'matches empty leading route component': function(t) {
+                this.uut.listen('*.foo.bar', this.fn);
+                this.uut.emit('.foo.bar', 1);
+                t.deepEqual(this.calls, [1]);
+                t.done();
+            },
+            'matches empty trailing route component': function(t) {
+                this.uut.listen('foo.bar.*', this.fn);
+                this.uut.emit('foo.bar.', 1);
+                t.deepEqual(this.calls, [1]);
+                t.done();
+            },
             'matches multiple separators': function(t) {
                 this.uut.listen('.foo..', this.fn);
                 this.uut.emit('foo', 1);
