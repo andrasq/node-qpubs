@@ -41,20 +41,24 @@ QPubs.prototype.emit = function emit( route, value ) {
     while ((ix2 = route.indexOf(sep, ix)) >= 0) {
         var prefLength = ix2, suffLength = route.length - ix2 - sep.length;
 
+// FIXME: is an empty prefix/suffix route component valid, or only non-empty?  I.e., should foo.* match 'foo.'?
         if (prefLength) this._listenEmit(this.headListeners, route, ix2 + sep.length, value);
         if (suffLength) this._listenEmit(this.tailListeners, route, -(route.length - ix2), value);
         ix = ix2 + sep.length;
     }
+// FIXME: is this final emit needed or not? (guessing not)
 //    if (ix2 + sep.length < route.length) this._listenEmit(this.headListeners, route, route.length, value);
 }
 
 QPubs.prototype._listenAdd = function _listenAdd( store, route, fn ) {
     // TRY: group listeners by length, for quicker prefix/suffix pruning
-    var list = store[route] || (store[route] = new Array());;
+    var hash = store[route.length] || (store[route.length] = {});
+    var list = hash[route] || (hash[route] = new Array());;
     list.push(fn);
 }
 QPubs.prototype._listenRemove = function _listenRemove( store, route, fn ) {
-    var list = store[route];
+    var hash = store[route.length];
+    if (hash) var list = hash[route];
     // remove just 1 listener like EventEmitter
     var ix = list ? list.indexOf(fn) : -1;
     if (ix >= 0) {
@@ -66,8 +70,10 @@ QPubs.prototype._listenRemove = function _listenRemove( store, route, fn ) {
 QPubs.prototype._listenEmit = function _listenEmit( store, route, ix, value ) {
     // TRY: optimize away prefix/suffix slice if no listeners of that length
     // (but string slice has become very fast)
+    var hash = ix >= 0 ? store[ix] : store[-ix];
+    if (!hash) return;
     var partial = ix >= 0 ? (ix === route.length ? route : route.slice(0, ix)) : route.slice(ix);
-    var list = store[partial];
+    var list = hash[partial];
     if (list) for (var i=0; i<list.length; i++) list[i](value);
 }
 

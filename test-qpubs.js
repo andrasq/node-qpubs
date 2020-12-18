@@ -175,6 +175,7 @@ module.exports = {
             console.time('mark');
             for (var i=0; i<nloops; i++) uut.emit('some.other.longish.route', 1);
             console.timeEnd('mark');
+            // this dumb benchmark is 3x faster if routes are hashed by length
             t.equal(ncalls, nloops);
             t.done();
         },
