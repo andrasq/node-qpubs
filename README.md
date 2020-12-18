@@ -49,10 +49,10 @@ constructor.
 Send the `message` to all the listeners listening on the route.  If a `callback` is given,
 it will be invoked once all recipients have seen the message.
 
-### ignore( route, callback )
+### ignore( route, listener(message) )
 
-Make the callback stop receiving messages from the given `route`.  If `listen()` was called
-multiple times for this route with this callback, each `ignore()` undoes one listen.
+Make the `listener` stop receiving messages from the given `route`.  If `listen()` was called
+multiple times for this route with this `listener`, each `ignore()` undoes one listen.
 
 
 <!--

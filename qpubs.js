@@ -1,5 +1,9 @@
 /*
  * small pubsub engine
+ * Hook up to microrest or qrpc for a very lean pubsub service.
+ *
+ * Copyright (C) 2020 Andras Radics
+ * Licensed under the Apache License, Version 2.0
  *
  * 2020-12-17 - AR.
  */
