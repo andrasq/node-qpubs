@@ -20,6 +20,9 @@ function QPubs( options ) {
     this.topicListeners = {};                   // full-topic listeners foo.bar
     this.headListeners = {};                    // topic prefix listeners foo.*
     this.tailListeners = {};                    // topic suffix listeners *.bar
+
+    // accessing undefined properties is slow, pre-set them
+    for (var i=0; i<258; i++) this.topicListeners[i] = this.headListeners[i] = this.tailListeners[i] = null;
 }
 
 QPubs.prototype.listen = function listen( topic, func, _remove ) {
@@ -54,11 +57,20 @@ QPubs.prototype.emit = function emit( topic, value, callback ) {
     callback && callback();
 }
 
+// function sliceBefore(str, ix) { return slice(0, ix) }
+// function sliceAfter(str, ix) { return slice(ix) }
 // return a brief characteristic summary of the string
 // (str[fm] + (to - fm) + str[to-1]) is smarter but 4x slower
 function _fingerprint(str, fm, to) { return (to - fm) & 255 }
+//function _fingerprint(str, fm, to) { return djb2(str, fm, to) } // djb2: 2.5x slower
 function _setHashList(hash, topic, list) { return hash[topic] = list }
 function _getHashList(hash, topic) { return hash[topic] }
+
+// djb2: http://www.cse.yorku.ca/~oz/hash.html:  hash(i) = hash(i - 1) * 33 ^ str[i];
+//function djb2( s, fm, to ) {
+//    for (var h=0, len=s.length, i=fm; i<to; i++) h = ((h * 33) ^ s.charCodeAt(i)) & 0xffffff;
+//    return h % 257; // limit range, {} access is faster indexed by small integers than >300 large 
+//}
 
 QPubs.prototype._listenAdd = function _listenAdd( store, route, ix, to, fn ) {
     var tag = _fingerprint(route, ix, to);

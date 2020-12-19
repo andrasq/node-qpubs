@@ -1,6 +1,6 @@
 {
   "name": "qpubs",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "lean pub-sub engine",
   "license": "Apache-2.0",
   "author": "andrasq",
