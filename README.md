@@ -118,6 +118,7 @@ Todo
 ----
 
 - support callbacked notifications too
+- think about incremental checksumming, both front-to-back and back-to-front
 
 
 Changelog

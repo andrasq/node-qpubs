@@ -61,15 +61,16 @@ QPubs.prototype.emit = function emit( topic, value, callback ) {
 // function sliceAfter(str, ix) { return slice(ix) }
 // return a brief characteristic summary of the string
 // (str[fm] + (to - fm) + str[to-1]) is smarter but 4x slower
+// limit fingerprint range, {} access is faster indexed by small integers than large >300
 function _fingerprint(str, fm, to) { return (to - fm) & 255 }
-//function _fingerprint(str, fm, to) { return djb2(str, fm, to) } // djb2: 2.5x slower
+//function _fingerprint(str, fm, to) { return djb2(0, str, fm, to) % 257 } // djb2: 2.5x slower
 function _setHashList(hash, topic, list) { return hash[topic] = list }
 function _getHashList(hash, topic) { return hash[topic] }
 
 // djb2: http://www.cse.yorku.ca/~oz/hash.html:  hash(i) = hash(i - 1) * 33 ^ str[i];
-//function djb2( s, fm, to ) {
-//    for (var h=0, len=s.length, i=fm; i<to; i++) h = ((h * 33) ^ s.charCodeAt(i)) & 0xffffff;
-//    return h % 257; // limit range, {} access is faster indexed by small integers than >300 large 
+//function djb2( h, s, fm, to ) {
+//    for (var i=fm; i<to; i++) h = ((h * 33) ^ s.charCodeAt(i)) & 0xffffff;
+//    return h;
 //}
 
 QPubs.prototype._listenAdd = function _listenAdd( store, route, ix, to, fn ) {
