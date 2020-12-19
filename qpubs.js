@@ -15,76 +15,88 @@ module.exports = QPubs;
 
 function QPubs( options ) {
     options = options || {};
-    this.separator = options.separator || '.';  // route component separator
+    this.separator = options.separator || '.';  // topic component separator
     this.wildcard = '*';                        // match-all component
-    this.routeListeners = {};                   // full-route listeners foo.bar
-    this.headListeners = {};                    // prefix-route listeners foo.*
-    this.tailListeners = {};                    // suffix-route listeners *.bar
+    this.topicListeners = {};                   // full-topic listeners foo.bar
+    this.headListeners = {};                    // topic prefix listeners foo.*
+    this.tailListeners = {};                    // topic suffix listeners *.bar
 }
 
-QPubs.prototype.listen = function listen( route, func, _remove ) {
-    if (typeof route !== 'string') throw new Error('bad route, expected string');
+QPubs.prototype.listen = function listen( topic, func, _remove ) {
+    if (typeof topic !== 'string') throw new Error('bad topic, expected string');
     if (typeof func !== 'function') throw new Error('bad callback, expected function');
 
-    var firstCh = route[0], lastCh = route[route.length - 1];
+    var firstCh = topic[0], lastCh = topic[topic.length - 1];
     if (firstCh === this.wildcard && lastCh === this.wildcard) throw new Error('cannot wildcard both head and tail');
 
     var addOrRemove = _remove ? this._listenRemove : this._listenAdd;
     if (lastCh === this.wildcard) {
-        addOrRemove(this.headListeners, route.slice(0, -1), func);
+        addOrRemove(this.headListeners, topic, 0, topic.length - 1, func);
     } else if (firstCh === this.wildcard) {
-        addOrRemove(this.tailListeners, route.slice(1), func);
+        addOrRemove(this.tailListeners, topic, 1, topic.length, func);
     } else {
-        addOrRemove(this.routeListeners, route, func);
+        addOrRemove(this.topicListeners, topic, 0, topic.length, func);
     }
 }
 
-QPubs.prototype.emit = function emit( route, value, callback ) {
-    var ix = 0, ix2, sep = this.separator;
-    this._listenEmit(this.routeListeners, route, route.length, value);
-    while ((ix2 = route.indexOf(sep, ix)) >= 0) {
-        this._listenEmit(this.headListeners, route, ix2 + sep.length, value);
-        this._listenEmit(this.tailListeners, route, -(route.length - ix2), value);
+QPubs.prototype.ignore = function ignore( topic, func ) {
+    this.listen(topic, func, true);
+}
+
+QPubs.prototype.emit = function emit( topic, value, callback ) {
+    var ix = 0, ix2, sep = this.separator, len = topic.length;
+    this._listenEmit(this.topicListeners, topic, 0, len, value);
+    while ((ix2 = topic.indexOf(sep, ix)) >= 0) {
+        this._listenEmit(this.headListeners, topic, 0, ix2 + sep.length, value);
+        this._listenEmit(this.tailListeners, topic, ix2, len, value);
         ix = ix2 + sep.length;
     }
     callback && callback();
 }
 
-QPubs.prototype._listenAdd = function _listenAdd( store, route, fn ) {
-    // TRY: group listeners by length, for quicker prefix/suffix pruning
-    var hash = store[route.length] || (store[route.length] = {});
-    var list = hash[route] || (hash[route] = new Array());;
+// return a brief characteristic summary of the string
+// (str[fm] + (to - fm) + str[to-1]) is smarter but 4x slower
+function _fingerprint(str, fm, to) { return (to - fm) & 255 }
+function _setHashList(hash, topic, list) { return hash[topic] = list }
+function _getHashList(hash, topic) { return hash[topic] }
+
+QPubs.prototype._listenAdd = function _listenAdd( store, route, ix, to, fn ) {
+    var tag = _fingerprint(route, ix, to);
+    var hash = store[tag] || (store[tag] = {});
+    var subroute = route.slice(ix, to);
+    var list = _getHashList(hash, subroute) || _setHashList(hash, subroute, new Array());
     list.push(fn);
 }
-QPubs.prototype._listenRemove = function _listenRemove( store, route, fn ) {
-    var hash = store[route.length];
-    if (hash) var list = hash[route];
-    // remove just 1 listener like EventEmitter
-    var ix = list ? list.indexOf(fn) : -1;
+QPubs.prototype._listenRemove = function _listenRemove( store, route, ix, to, fn ) {
+    var tag = _fingerprint(route, ix, to);
+    var hash = store[tag];
+    var subroute = route.slice(ix, to);
+    if (hash) var list = _getHashList(hash, subroute);
+    var ix = list ? list.indexOf(fn) : -1; // remove just 1 listener, like EventEmitter
     if (ix >= 0) {
-        for (var i=ix+1; i<list.length; i++) list[i-1] = list[i];
+        for (var i = ix + 1; i < list.length; i++) list[i-1] = list[i];
         list.length -= 1;
-        if (list.length === 0) delete store[route];
+        if (list.length === 0) hash[subroute] = undefined;
     }
 }
-QPubs.prototype._listenEmit = function _listenEmit( store, route, ix, value ) {
-    // TRY: optimize away prefix/suffix slice if no listeners of that length
-    // (but string slice has become very fast)
-    var hash = ix >= 0 ? store[ix] : store[-ix];
+QPubs.prototype._listenEmit = function _listenEmit( store, route, ix, to, value ) {
+    var hash = store[_fingerprint(route, ix, to)];
     if (!hash) return;
-    var partial = ix >= 0 ? (ix === route.length ? route : route.slice(0, ix)) : route.slice(ix);
-    var list = hash[partial];
-    if (list) for (var i=0; i<list.length; i++) list[i](value);
+    var subroute = route.slice(ix, to);
+    var list = _getHashList(hash, subroute);
+    if (list) for (var i = 0; i < list.length; i++) {
+        list[i](value);
+    }
     // TODO: pass in callback, wait for all listeners to acknowledge, call callback
     // TODO: if (list[i].length === 2) wait for the func to call its callback
-}
-
-QPubs.prototype.ignore = function ignore( route, func ) {
-    this.listen(route, func, true);
+    // TODO: segregate listeners by type -- with callback, and without (to not test in the loop)
 }
 
 QPubs.prototype.addListener = QPubs.prototype.listen;
 QPubs.prototype.removeListener = QPubs.prototype.ignore;
+QPubs.prototype.publish = QPubs.prototype.emit;
+QPubs.prototype.subscribe = QPubs.prototype.listen;
+QPubs.prototype.unsubscribe = QPubs.prototype.ignore;
 
 QPubs.prototype = toStruct(QPubs.prototype);
 

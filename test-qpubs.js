@@ -22,18 +22,18 @@ module.exports = {
     'listen': {
         'throws if no route': function(t) {
             var uut = this.uut;
-            t.throws(function() { uut.listen() }, /bad route/);
-            t.throws(function() { uut.listen(null) }, /bad route/);
-            t.throws(function() { uut.listen({}) }, /bad route/);
-            t.throws(function() { uut.listen(23) }, /bad route/);
+            t.throws(function() { uut.listen() }, /bad topic/);
+            t.throws(function() { uut.listen(null) }, /bad topic/);
+            t.throws(function() { uut.listen({}) }, /bad topic/);
+            t.throws(function() { uut.listen(23) }, /bad topic/);
             t.done();
         },
         'throws if no callback': function(t) {
             var uut = this.uut;
-            t.throws(function() { uut.listen('mock.route') }, /bad callback/);
-            t.throws(function() { uut.listen('mock.route', null) }, /bad callback/);
-            t.throws(function() { uut.listen('mock.route', {}) }, /bad callback/);
-            t.throws(function() { uut.listen('mock.route', 23) }, /bad callback/);
+            t.throws(function() { uut.listen('mock.topic') }, /bad callback/);
+            t.throws(function() { uut.listen('mock.topic', null) }, /bad callback/);
+            t.throws(function() { uut.listen('mock.topic', {}) }, /bad callback/);
+            t.throws(function() { uut.listen('mock.topic', 23) }, /bad callback/);
             t.done();
         },
         'throws if both ends wildcarded': function(t) {
@@ -102,13 +102,13 @@ module.exports = {
                 t.deepEqual(this.calls, [2]);
                 t.done();
             },
-            'matches empty leading route component': function(t) {
+            'matches empty leading topic component': function(t) {
                 this.uut.listen('*.foo.bar', this.fn);
                 this.uut.emit('.foo.bar', 1);
                 t.deepEqual(this.calls, [1]);
                 t.done();
             },
-            'matches empty trailing route component': function(t) {
+            'matches empty trailing topic component': function(t) {
                 this.uut.listen('foo.bar.*', this.fn);
                 this.uut.emit('foo.bar.', 1);
                 t.deepEqual(this.calls, [1]);
@@ -120,6 +120,8 @@ module.exports = {
                 this.uut.emit('foo.', 2);
                 this.uut.emit('foo..', 3);
                 this.uut.emit('.foo..', 4);
+                this.uut.emit('.foo...', '4b');
+                this.uut.emit('..foo..', '4c');
                 this.uut.emit('.foo.', 5);
                 this.uut.emit('.foo', 6);;
                 this.uut.emit('foo.bar', 7);
@@ -191,34 +193,39 @@ module.exports = {
         },
     },
 
-    'performance': {
+    'speed': {
         'it notifies quickly': function(t) {
             var ncalls = 0;
             var uut = this.uut;
-            uut.listen('some.longish.route', function(){ ncalls += 1 });
-            uut.listen('some.other.longish.route', function(){ ncalls += 1 });
-            uut.listen('some.third.longish.route', function(){ ncalls += 1 });
-            uut.listen('some.even.longer.longish.route', function(){ ncalls += 1 });
+            uut.listen('some.longish.topic', function(){ ncalls += 1 });
+            uut.listen('some.other.longish.topic', function(){ ncalls += 1 });
+            uut.listen('some.third.longish.topic', function(){ ncalls += 1 });
+            uut.listen('some.even.longer.longish.topic', function(){ ncalls += 1 });
             var nloops = 100000;
             console.time(nloops + ' emits');
-            for (var i=0; i<nloops; i++) uut.emit('some.other.longish.route', 1);
+            for (var i=0; i<nloops; i++) uut.emit('some.other.longish.topic', 1);
             console.timeEnd(nloops + ' emits');
-            // 23ms, this dumb benchmark is 3x faster if routes are hashed by length
+            // 22ms, this dumb benchmark is 3x faster if topics are hashed by length (4.5m/s)
+            // (16ms if prefix match only, 27ms if always slice partials, but 20ms if list not hashed...)
+            // (BUT: 68ms if list not hashed -- because of the undefined array subscript accesses? -- try indexOf()?)
+            // NOTE: standalone is 13.6ms, so test suite deoptimizes
+            // (of 13.6ms: 2ms to just call, 6ms to also find separators, 7ms hash, 10ms find list, 13ms traverse list)
+            // (only 10ms if checking on only prefixes)
             t.equal(ncalls, nloops);
             t.done();
         },
         'it compared to events': function(t) {
             var ncalls = 0;
             var ee = new (require('events')).EventEmitter();
-            ee.on('some.longish.route', function(){ ncalls += 1 });
-            ee.on('some.other.longish.route', function(){ ncalls += 1 });
-            ee.on('some.third.longish.route', function(){ ncalls += 1 });
-            ee.on('some.even.longer.longish.route', function(){ ncalls += 1 });
+            ee.on('some.longish.topic', function(){ ncalls += 1 });
+            ee.on('some.other.longish.topic', function(){ ncalls += 1 });
+            ee.on('some.third.longish.topic', function(){ ncalls += 1 });
+            ee.on('some.even.longer.longish.topic', function(){ ncalls += 1 });
             var nloops = 100000;
             console.time(nloops + ' EE.emit');
-            for (var i=0; i<nloops; i++) ee.emit('some.other.longish.route', 1);
+            for (var i=0; i<nloops; i++) ee.emit('some.other.longish.topic', 1);
             console.timeEnd(nloops + ' EE.emit');
-            // 3.6ms, 6.4x faster
+            // 3.6ms, 6.4x faster (28m/s)
             t.equal(ncalls, nloops);
             t.done();
         },
