@@ -32,7 +32,7 @@ QPubs.prototype.listen = function listen( topic, func, _remove ) {
     var firstCh = topic[0], lastCh = topic[topic.length - 1];
     if (firstCh === this.wildcard && lastCh === this.wildcard) throw new Error('cannot wildcard both head and tail');
 
-    var addOrRemove = _remove ? this._listenRemove : this._listenAdd;
+    var addOrRemove = _remove === 'yes, remove not listen' ? this._listenRemove : this._listenAdd;
     if (lastCh === this.wildcard) {
         addOrRemove(this.headListeners, topic, 0, topic.length - 1, func);
     } else if (firstCh === this.wildcard) {
@@ -43,7 +43,7 @@ QPubs.prototype.listen = function listen( topic, func, _remove ) {
 }
 
 QPubs.prototype.ignore = function ignore( topic, func ) {
-    this.listen(topic, func, true);
+    this.listen(topic, func, 'yes, remove not listen');
 }
 
 QPubs.prototype.emit = function emit( topic, value, callback ) {
