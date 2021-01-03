@@ -7,15 +7,16 @@
   "main": "qpubs.js",
 
   "repository": {"type": "git", "url": "git://github.com/andrasq/node-qpubs"},
-  "files": ["qubs.js", "README.md"],
   "readme": "see README.md in the repo",
+  "files": ["qubs.js", "README.md"],
 
   "XX_dependencies": {
-    "qfputs": "1.8.0",
+    "microrest": "0.6.4",
+    "qfifo": "0.3.0",
     "qibl": "1.7.3",
     "qrpc": "1.1.6"
   },
-  "devDependencies": {
+  "XX_devDependencies": {
     "qnit": "0.31.0"
   },
 

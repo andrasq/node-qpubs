@@ -35,24 +35,24 @@ Api
 Construct and configure the pubsub engine.
 
 Options:
-- `separator` - string that separates route components.  Default is a `.` dot.
+- `separator` - string that separates topic components.  Default is a `.` dot.
 
-### listen( route, listener(message) )
+### listen( topic, listener(message) )
 
-Listen for messages published on the named `route`.  Each received message is passed to all
-interested `listener()`-s.  The wildcard `*` matches all leading or trailing route components
-(but not both).  Route components are separated by the `separator` string passed to the
+Listen for messages published to the named `topic`.  Each received message is passed to all
+interested `listener()`-s.  The wildcard `*` matches leading or trailing topic components
+(one or the other, not both).  Route components are separated by the `separator` string passed to the
 constructor.
 
-### emit( route, message [,callback(err)] )
+### emit( topic, message [,callback(err)] )
 
-Send the `message` to all the listeners listening on the route.  If a `callback` is given,
+Send the `message` to all the listeners listening to the topic.  If a `callback` is given,
 it will be invoked once all recipients have seen the message.
 
-### ignore( route, listener(message) )
+### ignore( topic, listener )
 
-Make the `listener` stop receiving messages from the given `route`.  If `listen()` was called
-multiple times for this route with this `listener`, each `ignore()` undoes one listen.
+Make the `listener` stop receiving messages from the given `topic`.  If `listen()` was called
+multiple times for this topic with this `listener`, each `ignore()` undoes one listen.
 
 
 <!--

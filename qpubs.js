@@ -2,7 +2,7 @@
  * small pubsub engine
  * Hook up to microrest or qrpc for a very lean pubsub service.
  *
- * Copyright (C) 2020 Andras Radics
+ * Copyright (C) 2020-2021 Andras Radics
  * Licensed under the Apache License, Version 2.0
  *
  * 2020-12-17 - AR.
@@ -112,5 +112,4 @@ QPubs.prototype.subscribe = QPubs.prototype.listen;
 QPubs.prototype.unsubscribe = QPubs.prototype.ignore;
 
 QPubs.prototype = toStruct(QPubs.prototype);
-
 function toStruct(p) { return toStruct.prototype = p }
