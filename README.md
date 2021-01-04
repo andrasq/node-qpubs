@@ -38,12 +38,13 @@ Construct and configure the pubsub engine.
 Options:
 - `separator` - string that separates topic components.  Default is a `.` dot.
 
-### listen( topic, listener(message) )
+### listen( topic, listener(message [,cb]) )
 
 Listen for messages published to the named `topic`.  Each received message is passed to all
 interested `listener()`-s.  The wildcard `*` matches leading or trailing topic components
 (one or the other, not both).  Route components are separated by the `separator` string passed to the
-constructor.
+constructor.  If the listener takes a callback `cb` it must be called to acknowledge receipt
+of the message, the `emit()` callback waits for all listeners to confirm.
 
 ### emit( topic, message [,callback(err)] )
 
