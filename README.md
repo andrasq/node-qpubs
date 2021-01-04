@@ -117,13 +117,14 @@ Design Notes
 Todo
 ----
 
-- support callbacked notifications too
 - think about incremental checksumming, both front-to-back and back-to-front
+- time out listener callbacks
 
 
 Changelog
 ---------
 
+- 0.0.6 - allow listeners to take callbacks
 - 0.0.5 - faster unwatched subtopic skipping
 - 0.0.4 - wildcard match empty leading/trailing route components
 - 0.0.3 - hash routes by length, callback on emit()

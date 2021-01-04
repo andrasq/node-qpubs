@@ -38,7 +38,7 @@ module.exports = {
         },
         'throws if both ends wildcarded': function(t) {
             var uut = this.uut;
-            function noop() {}
+            function noop(v) {}
             t.throws(function() { uut.listen('*.foo.bar.*', noop) }, /cannot wildcard both/);
             t.throws(function() { uut.listen('*.*', noop) }, /cannot wildcard both/);
             t.throws(function() { uut.listen('*', noop) }, /cannot wildcard both/);
@@ -59,7 +59,20 @@ module.exports = {
             t.deepEqual(this.calls, [1, 23]);
             t.done();
         },
-        'callback is invoked': function(t) {
+        'waits for callbacks': function(t) {
+            this.uut.listen('foo.bar', function(v, cb) { cb() });
+            this.uut.listen('foo.bar', function(v, cb) { cb() });
+            this.uut.listen('foo.bar', function(v, cb) { setTimeout(cb, 10) });
+            var t1 = Date.now();
+            this.uut.emit('foo.bar', 123, function(err, errors) {
+                var t2 = Date.now();
+                t.ifError(err);
+                t.ok(Array.isArray(errors));
+                t.ok(t2 >= t1 + 10 - 1);        // beware the setTimeout off-by-one
+                t.done();
+            })
+        },
+        'callback is invoked immediately': function(t) {
             this.uut.listen('foo.bar', this.fn);
             this.uut.listen('foo.*', this.fn);
             var calls = this.calls;
@@ -76,10 +89,10 @@ module.exports = {
             this.uut.emit('foo.bar', 2);
             this.uut.emit('bar', 21);
             this.uut.emit('bar.foo', 22);
+            this.uut.emit('bar.foo.foo', 23);
             this.uut.emit('foo.bar.baz', 3);
-// FIXME: emits a duplicate!
-//            this.uut.emit('foo.', 4);
-            t.deepEqual(this.calls, [2, 3]);
+            this.uut.emit('foo.', 4);
+            t.deepEqual(this.calls, [2, 3, 4]);
             t.done();
         },
         'calls suffix listener': function(t) {
@@ -90,7 +103,8 @@ module.exports = {
             this.uut.emit('bar.foo', 21);
             this.uut.emit('foo.bar.zed', 22);
             this.uut.emit('baz.foo.bar', 3);
-            t.deepEqual(this.calls, [2, 3]);
+            this.uut.emit('.bar', 4);
+            t.deepEqual(this.calls, [2, 3, 4]);
             t.done();
         },
         'edge cases': {
@@ -197,10 +211,10 @@ module.exports = {
         'it notifies quickly': function(t) {
             var ncalls = 0;
             var uut = this.uut;
-            uut.listen('some.longish.topic', function(){ ncalls += 1 });
-            uut.listen('some.other.longish.topic', function(){ ncalls += 1 });
-            uut.listen('some.third.longish.topic', function(){ ncalls += 1 });
-            uut.listen('some.even.longer.longish.topic', function(){ ncalls += 1 });
+            uut.listen('some.longish.topic', function(v, cb){ ncalls += 1; cb() });
+            uut.listen('some.other.longish.topic', function(v, cb){ ncalls += 1; cb() });
+            uut.listen('some.third.longish.topic', function(v, cb){ ncalls += 1; cb() });
+            uut.listen('some.even.longer.longish.topic', function(v, cb){ ncalls += 1; cb() });
             var nloops = 100000;
             console.time(nloops + ' emits');
             for (var i=0; i<nloops; i++) uut.emit('some.other.longish.topic', 1);
@@ -217,10 +231,10 @@ module.exports = {
         'it compared to events': function(t) {
             var ncalls = 0;
             var ee = new (require('events')).EventEmitter();
-            ee.on('some.longish.topic', function(){ ncalls += 1 });
-            ee.on('some.other.longish.topic', function(){ ncalls += 1 });
-            ee.on('some.third.longish.topic', function(){ ncalls += 1 });
-            ee.on('some.even.longer.longish.topic', function(){ ncalls += 1 });
+            ee.on('some.longish.topic', function(v){ ncalls += 1 });
+            ee.on('some.other.longish.topic', function(v){ ncalls += 1 });
+            ee.on('some.third.longish.topic', function(v){ ncalls += 1 });
+            ee.on('some.even.longer.longish.topic', function(v){ ncalls += 1 });
             var nloops = 100000;
             console.time(nloops + ' EE.emit');
             for (var i=0; i<nloops; i++) ee.emit('some.other.longish.topic', 1);

@@ -26,19 +26,24 @@ function QPubs( options ) {
 }
 
 QPubs.prototype.listen = function listen( topic, func, _remove ) {
+    var yesRemove = (_remove === 'yes, remove not listen');
     if (typeof topic !== 'string') throw new Error('bad topic, expected string');
     if (typeof func !== 'function') throw new Error('bad callback, expected function');
-
+    var fn = (!yesRemove && func.length === 1) ? function(value, cb) { func(value); cb() } : func;
+    if (!yesRemove) {
+        if (fn.length > 2) throw new Error('listener takes just a value and an optional callback');
+        if (fn !== func) fn._fn = func;
+    }
     var firstCh = topic[0], lastCh = topic[topic.length - 1];
     if (firstCh === this.wildcard && lastCh === this.wildcard) throw new Error('cannot wildcard both head and tail');
 
-    var addOrRemove = _remove === 'yes, remove not listen' ? this._listenRemove : this._listenAdd;
+    var addOrRemove = yesRemove ? this._listenRemove : this._listenAdd;
     if (lastCh === this.wildcard) {
-        addOrRemove(this.headListeners, topic, 0, topic.length - 1, func);
+        addOrRemove(this.headListeners, topic, 0, topic.length - 1, fn);
     } else if (firstCh === this.wildcard) {
-        addOrRemove(this.tailListeners, topic, 1, topic.length, func);
+        addOrRemove(this.tailListeners, topic, 1, topic.length, fn);
     } else {
-        addOrRemove(this.topicListeners, topic, 0, topic.length, func);
+        addOrRemove(this.topicListeners, topic, 0, topic.length, fn);
     }
 }
 
@@ -48,14 +53,17 @@ QPubs.prototype.ignore = function ignore( topic, func ) {
 
 QPubs.prototype.emit = function emit( topic, value, callback ) {
     var ix = 0, ix2, sep = this.separator, len = topic.length;
-    this._listenEmit(this.topicListeners, topic, 0, len, value);
+    var state = { nexpect: 1, ndone: 0, error: null, done: null };
+    state.done = _awaitCallbacks(1, callback || _noop, state);
+    this._listenEmit(this.topicListeners, topic, 0, len, value, state);
     while ((ix2 = topic.indexOf(sep, ix)) >= 0) {
-        this._listenEmit(this.headListeners, topic, 0, ix2 + sep.length, value);
-        this._listenEmit(this.tailListeners, topic, ix2, len, value);
+        this._listenEmit(this.headListeners, topic, 0, ix2 + sep.length, value, state);
+        this._listenEmit(this.tailListeners, topic, ix2, len, value, state);
         ix = ix2 + sep.length;
     }
-    callback && callback();
+    state.done(); // once all are notified, ack the initial "1" count and wait for the callbacks
 }
+function _noop(e, errs){}
 
 // function sliceBefore(str, ix) { return slice(0, ix) }
 // function sliceAfter(str, ix) { return slice(ix) }
@@ -82,27 +90,33 @@ QPubs.prototype._listenAdd = function _listenAdd( store, route, ix, to, fn ) {
 }
 QPubs.prototype._listenRemove = function _listenRemove( store, route, ix, to, fn ) {
     var tag = _fingerprint(route, ix, to);
-    var hash = store[tag];
-    var subroute = route.slice(ix, to);
-    if (hash) var list = _getHashList(hash, subroute);
-    var ix = list ? list.indexOf(fn) : -1; // remove just 1 listener, like EventEmitter
-    if (ix >= 0) {
+    var hash = store[tag], subroute, list;
+    if (!hash || !(list = _getHashList(hash, (subroute = route.slice(ix, to))))) return;
+    var ix = list.indexOf(fn);
+    if (ix < 0) { for (ix = 0; ix < list.length; ix++) if (list[ix]._fn === fn) break }
+    if (ix >= 0 && ix < list.length) {
         for (var i = ix + 1; i < list.length; i++) list[i-1] = list[i];
         list.length -= 1;
         if (list.length === 0) hash[subroute] = undefined;
     }
 }
-QPubs.prototype._listenEmit = function _listenEmit( store, route, ix, to, value ) {
-    var hash = store[_fingerprint(route, ix, to)];
-    if (!hash) return;
-    var subroute = route.slice(ix, to);
-    var list = _getHashList(hash, subroute);
-    if (list) for (var i = 0; i < list.length; i++) {
-        list[i](value);
+QPubs.prototype._listenEmit = function _listenEmit( store, route, ix, to, value, state ) {
+    var tag = _fingerprint(route, ix, to);
+    var hash = store[tag], list;
+    if (!hash || !(list = _getHashList(hash, route.slice(ix, to)))) return;
+    state.nexpect += list.length;
+    for (var i = 0; i < list.length; i++) {
+        list[i](value, state.done);
     }
-    // TODO: pass in callback, wait for all listeners to acknowledge, call callback
-    // TODO: if (list[i].length === 2) wait for the func to call its callback
-    // TODO: segregate listeners by type -- with callback, and without (to not test in the loop)
+}
+function _awaitCallbacks( nexpect, callback, state ) {
+    // TODO: time out
+    var errors = [];
+    return function(err) {
+        if (err) { errors.push(err); if (!state.error) state.error = err }
+        state.ndone += 1;
+        if (state.ndone === state.nexpect) return callback(state.error, errors);
+    }
 }
 
 QPubs.prototype.addListener = QPubs.prototype.listen;
