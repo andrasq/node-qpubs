@@ -36,6 +36,11 @@ module.exports = {
             t.throws(function() { uut.listen('mock.topic', 23) }, /bad callback/);
             t.done();
         },
+        'throws if listener takes too many args': function(t) {
+            var uut = this.uut;
+            t.throws(function() { uut.listen('*.foo.bar.*', function(a, b, c) {}) }, /just a value/);
+            t.done();
+        },
         'throws if both ends wildcarded': function(t) {
             var uut = this.uut;
             function noop(v) {}
@@ -107,6 +112,15 @@ module.exports = {
             t.deepEqual(this.calls, [2, 3, 4]);
             t.done();
         },
+        'returns notification errors': function(t) {
+            this.uut.listen('foo.bar', function(v, cb) { cb('mock err 1') });
+            this.uut.listen('foo.*', function(v, cb) { cb('mock err 2') });
+            this.uut.emit('foo.bar', 111, function(err, errors) {
+                t.equal(err, 'mock err 1');
+                t.deepEqual(errors, ['mock err 1', 'mock err 2']);
+                t.done();
+            })
+        },
         'edge cases': {
             'matches separators exactly': function(t) {
                 this.uut.listen('foo.', this.fn);
@@ -146,6 +160,35 @@ module.exports = {
     },
 
     'ignore': {
+        'removes 1-arg listener': function(t) {
+            var calls = [];
+            var fn = function(v){ calls.push(v) };
+            this.uut.listen('foobar', fn);
+            this.uut.emit('foobar', 1);
+            this.uut.ignore('foobar', fn);
+            this.uut.emit('foobar', 2);
+            t.deepEqual(calls, [1]);
+            t.done();
+        },
+        'removes 2-arg listener': function(t) {
+            var calls = [];
+            var fn = function(v, cb){ calls.push(v); cb(); };
+            this.uut.listen('foobar', fn);
+            this.uut.emit('foobar', 1);
+            this.uut.ignore('foobar', fn);
+            this.uut.emit('foobar', 2);
+            t.deepEqual(calls, [1]);
+            t.done();
+        },
+        'tolerates listener not found': function(t) {
+            var fn = function(){};
+            this.uut.listen('foo', fn);
+            this.uut.ignore('foo', function(v){});
+            this.uut.ignore('foo', function(v, cb){ cb() });
+            this.uut.ignore('foo', fn);
+            this.uut.ignore('foo', fn);
+            t.done();
+        },
         'removes 1-part listener': function(t) {
             this.uut.listen('foobar', this.fn);
             this.uut.emit('foobar', 1);
