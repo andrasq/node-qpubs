@@ -132,7 +132,7 @@ Todo
 Changelog
 ---------
 
-- 0.0.6 - allow listeners to take callbacks
+- 0.1.1 - allow listeners to take callbacks, faster emit
 - 0.0.5 - faster unwatched subtopic skipping
 - 0.0.4 - wildcard match empty leading/trailing route components
 - 0.0.3 - hash routes by length, callback on emit()
