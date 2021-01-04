@@ -17,14 +17,13 @@ function QPubs( options ) {
     options = options || {};
     this.separator = options.separator || '.';  // topic component separator
     this.wildcard = '*';                        // match-all component
+
     this.topicListeners = {};                   // full-topic listeners foo.bar
     this.headListeners = {};                    // topic prefix listeners foo.*
     this.tailListeners = {};                    // topic suffix listeners *.bar
     this.substringListenerCounts = new Array(); // *-fix listener counts by substring length
     // TODO: 10ms interval timer to time out listener callbacks (and retry)
-
-    // accessing undefined properties is slow, pre-set them
-    for (var i=1; i<258; i++) this.substringListenerCounts[i] = 0;
+    for (var i=1; i<258; i++) this.substringListenerCounts[i] = 0;      // define properties for faster access
 }
 
 QPubs.prototype.listen = function listen( topic, func, _remove ) {

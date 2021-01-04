@@ -10,6 +10,7 @@ Simple, light-weight pub-sub engine modeled on Nodejs event emitters.
 Summary
 -------
 
+    var QPubs = require('qpubs');
     var pubs = new QPubs({ separator: '.' });
     pubs.listen('my.event', function(message) {
         console.log('message == %s', message);
