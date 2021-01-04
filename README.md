@@ -4,6 +4,9 @@ qpubs
 
 Simple, light-weight pub-sub engine modeled on Nodejs event emitters.
 
+- wildcard topic prefix and suffic matching
+- support for message receipt confirmation
+
 Summary
 -------
 
@@ -17,8 +20,9 @@ Summary
         console.log('msg == %s', msg);
         // => msg == 77
     })
-    pubs.listen('*.event', function(ev) {
+    pubs.listen('*.event', function(ev, ack) {
         console.log('ev == %s', ev);
+        ack();
         // => ev == 42
         //    ev == 77
         //    ev == 451
@@ -43,13 +47,15 @@ Options:
 Listen for messages published to the named `topic`.  Each received message is passed to all
 interested `listener()`-s.  The wildcard `*` matches leading or trailing topic components
 (one or the other, not both).  Route components are separated by the `separator` string passed to the
-constructor.  If the listener takes a callback `cb` it must be called to acknowledge receipt
-of the message, the `emit()` callback waits for all listeners to confirm.
+constructor.  If the listener function takes a callback `cb`, it must be called to acknowledge receipt
+of the message; the `emit()` callback waits for all listeners to confirm.
 
-### emit( topic, message [,callback(err)] )
+### emit( topic, message [,callback(err, errors)] )
 
 Send the `message` to all the listeners listening to the topic.  If a `callback` is given,
-it will be invoked once all recipients have seen the message.
+it will be invoked once all recipients have acknowledged the message.  The callback will
+return all errors encountered while notifying the listeners, the first error as `err` and
+the all errors in the `errors` array.
 
 ### ignore( topic, listener )
 
