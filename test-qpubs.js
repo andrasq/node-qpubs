@@ -38,7 +38,7 @@ module.exports = {
         },
         'throws if listener takes too many args': function(t) {
             var uut = this.uut;
-            t.throws(function() { uut.listen('*.foo.bar.*', function(a, b, c) {}) }, /just a value/);
+            t.throws(function() { uut.listen('*.foo.bar.*', function(a, b, c) {}) }, /bad listener/);
             t.done();
         },
         'throws if both ends wildcarded': function(t) {

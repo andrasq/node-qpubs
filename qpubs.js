@@ -24,10 +24,7 @@ function QPubs( options ) {
     // TODO: 10ms interval timer to time out listener callbacks (and retry)
 
     // accessing undefined properties is slow, pre-set them
-    for (var i=0; i<258; i++) {
-        this.topicListeners[i] = this.headListeners[i] = this.tailListeners[i] = null;
-        this.substringListenerCounts[i] = 0;
-    }
+    for (var i=1; i<258; i++) this.substringListenerCounts[i] = 0;
 }
 
 QPubs.prototype.listen = function listen( topic, func, _remove ) {
@@ -36,7 +33,7 @@ QPubs.prototype.listen = function listen( topic, func, _remove ) {
     if (typeof func !== 'function') throw new Error('bad callback, expected function');
     var fn = (!yesRemove && func.length === 1) ? function(value, cb) { func(value); cb() } : func;
     if (!yesRemove) {
-        if (fn.length > 2) throw new Error('listener takes just a value and an optional callback');
+        if (fn.length > 2) throw new Error('bad listener, takes just a value and an optional callback');
         if (fn !== func) fn._fn = func;
     }
     var firstCh = topic[0], lastCh = topic[topic.length - 1];
@@ -59,13 +56,13 @@ QPubs.prototype.ignore = function ignore( topic, func ) {
 QPubs.prototype.emit = function emit( topic, value, callback ) {
     var ix = 0, ix2a, ix2b, sep = this.separator, len = topic.length;
     var state = { nexpect: 1, ndone: 0, error: null, done: null };
-    var liscounts = this.substringListenerCounts;
     state.done = _awaitCallbacks(1, callback || _noop, state);
+    var liscounts = this.substringListenerCounts;
     this._listenEmit(this.topicListeners, topic, 0, len, value, state);
     while ((ix2a = topic.indexOf(sep, ix)) >= 0) {
         var ix2b = ix2a + sep.length;
-        if (liscounts[ix2b - 0]) this._listenEmit(this.headListeners, topic, 0, ix2b, value, state);
-        if (liscounts[len - ix2a]) this._listenEmit(this.tailListeners, topic, ix2a, len, value, state);
+        if (liscounts[_fingerprint(topic, 0, ix2b)]) this._listenEmit(this.headListeners, topic, 0, ix2b, value, state);
+        if (liscounts[_fingerprint(topic, ix2a, len)]) this._listenEmit(this.tailListeners, topic, ix2a, len, value, state);
         ix = ix2b;
     }
     state.done(); // once all are notified, ack the initial "1" count and wait for the callbacks
@@ -78,7 +75,7 @@ function _noop(e, errs){}
 // (str[fm] + (to - fm) + str[to-1]) is smarter but 4x slower
 // limit fingerprint range, {} access is faster indexed by small integers than large >300
 function _fingerprint(str, fm, to) { return (to - fm) & 255 }
-//function _fingerprint(str, fm, to) { return djb2(0, str, fm, to) % 257 } // djb2: 2.5x slower
+//function _fingerprint(str, fm, to) { return djb2(0, str, fm, to) % 257 } // djb2: 2x slower
 function _setHashList(hash, topic, list) { return hash[topic] = list }
 function _getHashList(hash, topic) { return hash[topic] }
 function _hashInc(hash, k, n) { return hash[k] = hash[k] ? hash[k] + n : n }
@@ -89,31 +86,27 @@ function _hashInc(hash, k, n) { return hash[k] = hash[k] ? hash[k] + n : n }
 //    return h;
 //}
 
-QPubs.prototype._listenAdd = function _listenAdd( store, route, ix, to, fn ) {
-    var tag = _fingerprint(route, ix, to);
-    var hash = store[tag] || (store[tag] = {});
+QPubs.prototype._listenAdd = function _listenAdd( hash, route, ix, to, fn ) {
     var subroute = route.slice(ix, to);
     var list = _getHashList(hash, subroute) || _setHashList(hash, subroute, new Array());
     list.push(fn);
-    _hashInc(this.substringListenerCounts, to - ix, 1);
+    _hashInc(this.substringListenerCounts, _fingerprint(route, ix, to), 1);
 }
-QPubs.prototype._listenRemove = function _listenRemove( store, route, ix, to, fn ) {
-    var tag = _fingerprint(route, ix, to);
-    var hash = store[tag], subroute, list;
-    if (!hash || !(list = _getHashList(hash, (subroute = route.slice(ix, to))))) return;
+QPubs.prototype._listenRemove = function _listenRemove( hash, route, ix, to, fn ) {
+    var list = _getHashList(hash, route.slice(ix, to));
+    if (!list) return;
     var ix = list.indexOf(fn);
     if (ix < 0) { for (ix = 0; ix < list.length; ix++) if (list[ix]._fn === fn) break }
     if (ix >= 0 && ix < list.length) {
         for (var i = ix + 1; i < list.length; i++) list[i-1] = list[i];
         list.length -= 1;
-        if (list.length === 0) hash[subroute] = undefined;
-        _hashInc(this.substringListenerCounts, to - ix, -1);
+        if (list.length === 0) hash[route.slice(ix, to)] = undefined;
+        _hashInc(this.substringListenerCounts, _fingerprint(route, ix, to), -1);
     }
 }
-QPubs.prototype._listenEmit = function _listenEmit( store, route, ix, to, value, state ) {
-    var tag = _fingerprint(route, ix, to);
-    var hash = store[tag], list;
-    if (!hash || !(list = _getHashList(hash, route.slice(ix, to)))) return;
+QPubs.prototype._listenEmit = function _listenEmit( hash, route, ix, to, value, state ) {
+    var list = _getHashList(hash, route.slice(ix, to));
+    if (!list) return;
     state.nexpect += list.length;
     for (var i = 0; i < list.length; i++) {
         list[i](value, state.done);
