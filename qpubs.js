@@ -20,7 +20,7 @@ function QPubs( options ) {
     this.topicListeners = {};                   // full-topic listeners foo.bar
     this.headListeners = {};                    // topic prefix listeners foo.*
     this.tailListeners = {};                    // topic suffix listeners *.bar
-    this.substringListenerCounts = {};          // prefix/suffix listeners by substring length
+    this.substringListenerCounts = new Array(); // *-fix listener counts by substring length
     // TODO: 10ms interval timer to time out listener callbacks (and retry)
 
     // accessing undefined properties is slow, pre-set them
