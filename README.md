@@ -1,5 +1,6 @@
 qpubs
 =====
+[![Build Status](https://travis-ci.org/andrasq/node-qpubs.svg?branch=master)](https://travis-ci.org/andrasq/node-qpubs)
 
 Simple, light-weight pub-sub engine modeled on Nodejs event emitters.
 
