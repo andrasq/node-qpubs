@@ -128,6 +128,7 @@ Todo
 
 - think about incremental checksumming, both front-to-back and back-to-front
 - time out listener callbacks
+- stateful, durable message stream subscribe/unsubscribe (with pluggable fifos)
 
 
 Changelog

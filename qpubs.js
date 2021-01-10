@@ -55,6 +55,25 @@ QPubs.prototype.ignore = function ignore( topic, func ) {
     this.listen(topic, func, 'yes, remove not listen', func);
 }
 
+/**
+QPubs.prototype.subscribe = function subscribe( topic, fifo ) {
+    // TODO: what if duplicate subscription for same fifo?
+    this.unsubscribe(topic, fifo);
+    var listener = function(message, callback) {
+        fifo.putline(message);
+        fifo.flush(callback);
+        // TODO: batch calls, flush less often
+    }
+    listener._tag = fifo;
+    this.listen(topic, listener);
+}
+QPubs.prototype.unsubscribe = function unsubscribe( topic, fifo ) {
+    this.listen(topic, null, 'yes, remove not listen', fifo);
+}
+// WRITE: qfifo.batchCalls(callback, options) => returns batchStep(value, cb) { ... }
+// options: maxWaitMs:2, maxCount:10, concurrent:false, batchSeed:[], batchFunc:[].push, 
+**/
+
 QPubs.prototype.emit = function emit( topic, value, callback ) {
     var ix = 0, ix2a, ix2b, sep = this.separator, len = topic.length;
     var state = { nexpect: 1, ndone: 0, error: null, done: null };
