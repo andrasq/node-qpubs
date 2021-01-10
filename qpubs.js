@@ -26,30 +26,33 @@ function QPubs( options ) {
     for (var i=1; i<258; i++) this.substringListenerCounts[i] = 0;      // define properties for faster access
 }
 
-QPubs.prototype.listen = function listen( topic, func, _remove ) {
+QPubs.prototype.listen = function listen( topic, func, _remove, tag ) {
     var yesRemove = (_remove === 'yes, remove not listen');
-    if (typeof topic !== 'string') throw new Error('bad topic, expected string');
-    if (typeof func !== 'function') throw new Error('bad callback, expected function');
-    var fn = (!yesRemove && func.length === 1) ? function(value, cb) { func(value); cb() } : func;
+    var fn = func;
+    tag = tag === undefined ? func : tag;
     if (!yesRemove) {
+        if (typeof topic !== 'string') throw new Error('bad topic, expected string');
+        if (typeof func !== 'function') throw new Error('bad callback, expected function');
+        var fn = (func.length === 1) ? function(value, cb) { func(value); cb() } : func;
+
         if (fn.length > 2) throw new Error('bad listener, takes just a value and an optional callback');
-        if (fn !== func) fn._fn = func;
+        if (fn !== func) fn._tag = func;
     }
     var firstCh = topic[0], lastCh = topic[topic.length - 1];
     if (firstCh === this.wildcard && lastCh === this.wildcard) throw new Error('cannot wildcard both head and tail');
 
     var addOrRemove = yesRemove ? this._listenRemove : this._listenAdd;
     if (lastCh === this.wildcard) {
-        addOrRemove.call(this, this.headListeners, topic, 0, topic.length - 1, fn);
+        addOrRemove.call(this, this.headListeners, topic, 0, topic.length - 1, fn, tag);
     } else if (firstCh === this.wildcard) {
-        addOrRemove.call(this, this.tailListeners, topic, 1, topic.length, fn);
+        addOrRemove.call(this, this.tailListeners, topic, 1, topic.length, fn, tag);
     } else {
-        addOrRemove.call(this, this.topicListeners, topic, 0, topic.length, fn);
+        addOrRemove.call(this, this.topicListeners, topic, 0, topic.length, fn, tag);
     }
 }
 
 QPubs.prototype.ignore = function ignore( topic, func ) {
-    this.listen(topic, func, 'yes, remove not listen');
+    this.listen(topic, func, 'yes, remove not listen', func);
 }
 
 QPubs.prototype.emit = function emit( topic, value, callback ) {
@@ -91,11 +94,11 @@ QPubs.prototype._listenAdd = function _listenAdd( hash, route, ix, to, fn ) {
     list.push(fn);
     _hashInc(this.substringListenerCounts, _fingerprint(route, ix, to), 1);
 }
-QPubs.prototype._listenRemove = function _listenRemove( hash, route, ix, to, fn ) {
+QPubs.prototype._listenRemove = function _listenRemove( hash, route, ix, to, fn, tag ) {
     var list = _getHashList(hash, route.slice(ix, to));
     if (!list) return;
-    var ix = list.indexOf(fn);
-    if (ix < 0) { for (ix = 0; ix < list.length; ix++) if (list[ix]._fn === fn) break }
+    var ix = fn && list.indexOf(fn);
+    if (ix < 0 && tag !== undefined) for (ix = 0; ix < list.length; ix++) if (list[ix]._tag === tag) break;
     if (ix >= 0 && ix < list.length) {
         for (var i = ix + 1; i < list.length; i++) list[i-1] = list[i];
         list.length -= 1;
