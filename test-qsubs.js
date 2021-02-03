@@ -2,6 +2,7 @@
 
 var fs = require('fs');
 var QSubs = require('./qsubs');
+var QFifo = require('qfifo');
 
 var fromBuf = parseInt(process.versions.node) > 6 ? Buffer.from : Buffer;
 
@@ -9,6 +10,9 @@ module.exports = {
     before: function() {
         this.dirname = '/tmp/qpubs.' + process.pid;
         try { fs.rmdirSync(this.dirname) } catch (e) {}
+    },
+
+    beforeEach: function() {
         this.mockPubs = { listen: noop, ignore: noop };
         this.uut = new QSubs(this.dirname, this.mockPubs);
     },
@@ -41,12 +45,52 @@ module.exports = {
     },
 
     'subscribe': {
+        'initializes': function(t) {
+            var uut = this.uut;
+            var spyListen = t.spy(uut.qpubs, 'listen');
+            uut.subscribe('topic-1', 'sub-1');
+            t.equal(uut.subscriptions['sub-1'], 'topic-1');
+            t.ok(uut.fifos['sub-1'] instanceof QFifo);
+            t.equal(typeof uut.listeners['sub-1'], 'function');
+            t.equal(spyListen.callCount, 1);
+            t.equal(spyListen.args[0][0], 'topic-1');
+            t.equal(spyListen.args[0][1], uut.listeners['sub-1']);
+            t.done();
+        },
+
+        'listener appends to fifo': function(t) {
+            this.uut.subscribe('topic-1', 'sub-1');
+            var fifo = this.uut.fifos['sub-1'];
+            var spy = t.stub(fifo, 'putline');
+            var spyFlush = t.stub(fifo, 'fflush');
+            this.uut.listeners['sub-1']('message-1\n', noop);
+            this.uut.listeners['sub-1']('message-2\n', noop);
+            var invalidObject = {}; invalidObject.self = invalidObject;
+            this.uut.listeners['sub-1'](invalidObject, noop);
+            t.equal(spy.callCount, 2);
+            t.deepEqual(spy.args, [ [ 'message-1\n' ], [ 'message-2\n' ] ]);
+            t.done();
+        },
+
+        'edge cases': {
+            'is a noop if already subscribed': function(t) {
+                this.uut.subscribe('topic-1', 'sub-1');
+                var fifo1 = this.uut.fifos['sub-1'];
+                this.uut.subscribe('topic-1', 'sub-1');
+                var fifo2 = this.uut.fifos['sub-1'];
+                t.equal(fifo2, fifo1);
+                t.done();
+            },
+            'returns errors to emit() cb': function(t) {
+                t.skip();
+            }
+        },
     },
 
     'unsubscribe': {
         'cleans up': function(t) {
             var uut = this.uut;
-            uut.mkdir_p(this.dirname);
+            uut.mkdir_p(uut.dirname);
             t.stubOnce(uut, 'loadIndex').returns({ subscriptions: { 'sub-1': 'top-1' } });
             uut.loadSubscriptions();
             var spyClose = t.spyOnce(uut.fifos['sub-1'], 'close');

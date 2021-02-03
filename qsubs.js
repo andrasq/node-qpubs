@@ -48,6 +48,7 @@ QSubs.prototype.subscribe = function subscribe( topic, subId ) {
             fifo.putline(m);
             fifo.fflush(cb);
             // TODO: batch calls, flush less often
+            cb();
         }
         this.listeners[subId] = listener;
         this.qpubs.listen(topic, listener);
