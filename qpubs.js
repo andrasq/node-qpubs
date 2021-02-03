@@ -20,11 +20,6 @@ function QPubs( options ) {
     this.separator = options.separator || '.';  // topic component separator
     this.wildcard = '*';                        // match-all component
 
-    if (options.fifoDir) {
-        this.subs = new QSubs(options.fifoDir);
-        this.subs.loadSubscriptions();
-    }
-
     this.topicListeners = {};                   // full-topic listeners foo.bar
     this.headListeners = {};                    // topic prefix listeners foo.*
     this.tailListeners = {};                    // topic suffix listeners *.bar
