@@ -1,6 +1,6 @@
 {
   "name": "qpubs",
-  "version": "0.1.4-dev",
+  "version": "0.2.0-dev",
   "description": "lean pub-sub engine",
   "license": "Apache-2.0",
   "author": "andrasq",
@@ -8,15 +8,15 @@
 
   "repository": {"type": "git", "url": "git://github.com/andrasq/node-qpubs"},
   "readme": "see README.md in the repo",
-  "files": ["qubs.js", "README.md"],
+  "files": ["qubs.js", "qsubs.js", "README.md"],
 
-  "XX_dependencies": {
+  "dependencies": {
     "microrest": "0.6.4",
-    "qfifo": "0.3.0",
+    "qfifo": "git;//github.com/andrasq/node-qfifo#0.4.2",
     "qibl": "1.7.3",
     "qrpc": "1.1.6"
   },
-  "XX_devDependencies": {
+  "devDependencies": {
     "qnit": "0.31.0"
   },
 

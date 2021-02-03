@@ -12,11 +12,18 @@
 
 module.exports = QPubs;
 
+var fs = require('fs');
+var QSubs = require('./qsubs');
 
 function QPubs( options ) {
     options = options || {};
     this.separator = options.separator || '.';  // topic component separator
     this.wildcard = '*';                        // match-all component
+
+    if (options.fifoDir) {
+        this.subs = new QSubs(options.fifoDir);
+        this.subs.loadSubscriptions();
+    }
 
     this.topicListeners = {};                   // full-topic listeners foo.bar
     this.headListeners = {};                    // topic prefix listeners foo.*
@@ -54,25 +61,6 @@ QPubs.prototype.listen = function listen( topic, func, _remove, tag ) {
 QPubs.prototype.ignore = function ignore( topic, func ) {
     this.listen(topic, func, 'yes, remove not listen', func);
 }
-
-/**
-QPubs.prototype.subscribe = function subscribe( topic, fifo ) {
-    // TODO: what if duplicate subscription for same fifo?
-    this.unsubscribe(topic, fifo);
-    var listener = function(message, callback) {
-        fifo.putline(message);
-        fifo.flush(callback);
-        // TODO: batch calls, flush less often
-    }
-    listener._tag = fifo;
-    this.listen(topic, listener);
-}
-QPubs.prototype.unsubscribe = function unsubscribe( topic, fifo ) {
-    this.listen(topic, null, 'yes, remove not listen', fifo);
-}
-// WRITE: qfifo.batchCalls(callback, options) => returns batchStep(value, cb) { ... }
-// options: maxWaitMs:2, maxCount:10, concurrent:false, batchSeed:[], batchFunc:[].push, 
-**/
 
 QPubs.prototype.emit = function emit( topic, value, callback ) {
     var ix = 0, ix2a, ix2b, sep = this.separator, len = topic.length;
@@ -142,6 +130,7 @@ function _awaitCallbacks( nexpect, callback, state ) {
         if (state.ndone === state.nexpect) return callback(state.error, errors);
     }
 }
+
 
 QPubs.prototype.addListener = QPubs.prototype.listen;
 QPubs.prototype.removeListener = QPubs.prototype.ignore;
