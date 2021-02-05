@@ -15,6 +15,8 @@ module.exports = QPubs;
 var fs = require('fs');
 var QSubs = require('./qsubs');
 
+var YES_REMOVE = 'yes, remove not listen';
+
 function QPubs( options ) {
     options = options || {};
     this.separator = options.separator || '.';  // topic component separator
@@ -29,7 +31,7 @@ function QPubs( options ) {
 }
 
 QPubs.prototype.listen = function listen( topic, func, _remove, tag ) {
-    var yesRemove = (_remove === 'yes, remove not listen');
+    var yesRemove = (_remove === YES_REMOVE);
     var fn = func;
     tag = tag === undefined ? func : tag;
     if (!yesRemove) {
@@ -54,7 +56,7 @@ QPubs.prototype.listen = function listen( topic, func, _remove, tag ) {
 }
 
 QPubs.prototype.ignore = function ignore( topic, func ) {
-    this.listen(topic, func, 'yes, remove not listen', func);
+    this.listen(topic, func, YES_REMOVE, func);
 }
 
 QPubs.prototype.emit = function emit( topic, value, callback ) {
