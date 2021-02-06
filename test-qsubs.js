@@ -51,10 +51,10 @@ module.exports = {
             uut.subscribe('topic-1', 'sub-1');
             t.equal(uut.subscriptions['sub-1'], 'topic-1');
             t.ok(uut.fifos['sub-1'] instanceof QFifo);
-            t.equal(typeof uut.listeners['sub-1'], 'function');
+            t.equal(typeof uut.appenders['sub-1'], 'function');
             t.equal(spyListen.callCount, 1);
             t.equal(spyListen.args[0][0], 'topic-1');
-            t.equal(spyListen.args[0][1], uut.listeners['sub-1']);
+            t.equal(spyListen.args[0][1], uut.appenders['sub-1']);
             t.done();
         },
 
@@ -63,10 +63,10 @@ module.exports = {
             var fifo = this.uut.fifos['sub-1'];
             var spy = t.stub(fifo, 'putline');
             var spyFlush = t.stub(fifo, 'fflush');
-            this.uut.listeners['sub-1']('message-1\n', noop);
-            this.uut.listeners['sub-1']('message-2\n', noop);
+            this.uut.appenders['sub-1']('message-1\n', noop);
+            this.uut.appenders['sub-1']('message-2\n', noop);
             var invalidObject = {}; invalidObject.self = invalidObject;
-            this.uut.listeners['sub-1'](invalidObject, noop);
+            this.uut.appenders['sub-1'](invalidObject, noop);
             t.equal(spy.callCount, 2);
             t.deepEqual(spy.args, [ [ 'message-1\n' ], [ 'message-2\n' ] ]);
             t.done();
@@ -100,7 +100,7 @@ module.exports = {
                 t.ifError(err);
                 t.equal(uut.subscriptions['sub-1'], undefined);
                 t.equal(uut.fifos['sub-1'], undefined);
-                t.equal(uut.listeners['sub-1'], undefined);
+                t.equal(uut.appenders['sub-1'], undefined);
                 t.ok(spyClose.called);
                 t.ok(spyUnlink.called);
                 t.ok(spyUnlink.args[0][0], uut.dirname + '/f.sub-1');

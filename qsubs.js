@@ -18,11 +18,15 @@ function QSubs( dirname, qpubs ) {
     this.dirname = dirname;
     this.needFifoDir = true;
     this.qpubs = qpubs;
-    this.fifos = {};
     this.subscriptions = {};
-    this.listeners = {};
+    this.fifos = {};
+    this.appenders = {};
 }
 
+/*
+ * Resubscribe to all registered subscriptions found in index.json
+ * Typically called when restarting a stopped pubsub service.
+ */
 QSubs.prototype.loadSubscriptions = function loadSubscriptions( ) {
     var fifoPatt = /^f\.(.*)$/;
     this.subscriptions = this.loadIndex().subscriptions;
@@ -50,13 +54,13 @@ QSubs.prototype.subscribe = function subscribe( topic, subId ) {
             // TODO: batch calls, flush less often
             cb();
         }
-        this.listeners[subId] = listener;
+        this.appenders[subId] = listener;
         this.qpubs.listen(topic, listener);
         // TODO: track how long a subscription has been idle, and clean up (auto-unsubscribe) after a week
     }
     // FIXME: arrange to deliver subscriptions to the registered recipient(s),
     // eg batch and ship via http callbacks
-    return fifo;
+    return subId;
 }
 
 QSubs.prototype.unsubscribe = function unsubscribe( subId, callback ) {
@@ -65,18 +69,23 @@ QSubs.prototype.unsubscribe = function unsubscribe( subId, callback ) {
     this.qpubs.unlisten(this.subscriptions[subId], this.listeners[subId]);
     this.fifos[subId] = undefined;
     this.subscriptions[subId] = undefined;
-    this.listeners[subId] = undefined;
+    this.appenders[subId] = undefined;
     fifo.close();
     try { fs.unlinkSync(this.dirname + '/f.' + subId) } catch (e) {}
     try { fs.unlinkSync(this.dirname + '/f.' + subId + '.hd') } catch (e) {}
     this.saveIndex(callback);
+    // FIXME: should not delete, just stop getting updates
+    // if (options.delete) this.closeSubscription(...)
+    this.closeSubscription(this.subscriptions[subId], subId, { delete: true }, callback);
 }
 
+// Read and return the saved index file.
 QSubs.prototype.loadIndex = function loadIndex( ) {
     var filename = this.dirname + '/index.json';
     try { return JSON.parse(String(fs.readFileSync(filename)) || '{}') } catch (err) { return {} }
 }
 
+// Generate an index file corresponding to the current state.
 QSubs.prototype.saveIndex = function saveIndex( callback ) {
     var filename = this.dirname + '/index.json';
     var info = { subscriptions: this.subscriptions };
@@ -84,15 +93,14 @@ QSubs.prototype.saveIndex = function saveIndex( callback ) {
     fs.writeFile(filename, JSON.stringify(info, null, 2), callback);
 }
 
+// create the directory if not exists, throw on error
 QSubs.prototype.mkdir_p = function mkdir_p( dirname ) {
     try { if (!fs.statSync(dirname).isDirectory()) throw new Error(dirname + ': not a directory') }
     catch (err) { if (err.code === 'ENOENT') fs.mkdirSync(dirname); else throw err }
 }
 
+// stringify the message to a newline terminated string, else return falsy
 QSubs.prototype.serializeMessage = function serializeMessage( m ) {
     if (typeof m === 'string' || Buffer.isBuffer(m)) return m;
-    m = tryJsonEncode(m);
-    return m ? m + '\n' : m;
+    try { return JSON.stringify(m) + '\n' } catch (e) { return '' }
 }
-
-function tryJsonEncode(m) { try { return JSON.stringify(m) } catch (e) { return '' } }
