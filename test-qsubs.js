@@ -13,7 +13,7 @@ module.exports = {
     },
 
     beforeEach: function() {
-        this.mockPubs = { listen: noop, ignore: noop };
+        this.mockPubs = { listen: noop, unlisten: noop };
         this.uut = new QSubs(this.dirname, this.mockPubs);
     },
 

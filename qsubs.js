@@ -62,7 +62,7 @@ QSubs.prototype.subscribe = function subscribe( topic, subId ) {
 QSubs.prototype.unsubscribe = function unsubscribe( subId, callback ) {
     var fifo = this.fifos[subId];
     if (!fifo) return callback();
-    this.qpubs.ignore(this.subscriptions[subId], this.listeners[subId]);
+    this.qpubs.unlisten(this.subscriptions[subId], this.listeners[subId]);
     this.fifos[subId] = undefined;
     this.subscriptions[subId] = undefined;
     this.listeners[subId] = undefined;

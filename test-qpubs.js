@@ -159,7 +159,7 @@ module.exports = {
         },
     },
 
-    'ignore': {
+    'unlisten': {
         'removes 1-arg listener': function(t) {
             var calls = [];
             var fn = function(v){ calls.push(v) };

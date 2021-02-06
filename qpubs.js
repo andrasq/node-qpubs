@@ -55,7 +55,7 @@ QPubs.prototype.listen = function listen( topic, func, _remove, tag ) {
     }
 }
 
-QPubs.prototype.ignore = function ignore( topic, func ) {
+QPubs.prototype.unlisten = function unlisten( topic, func ) {
     this.listen(topic, func, YES_REMOVE, func);
 }
 
@@ -130,7 +130,8 @@ function _awaitCallbacks( nexpect, callback, state ) {
 
 
 QPubs.prototype.addListener = QPubs.prototype.listen;
-QPubs.prototype.removeListener = QPubs.prototype.ignore;
+QPubs.prototype.removeListener = QPubs.prototype.unlisten;
+QPubs.prototype.ignore = QPubs.prototype.unlisten;
 QPubs.prototype.publish = QPubs.prototype.emit;
 QPubs.prototype.subscribe = QPubs.prototype.listen;
 QPubs.prototype.unsubscribe = QPubs.prototype.ignore;
