@@ -10,6 +10,13 @@ the _topic_.  Message buffering, transport and delivery are abstracted away.  Th
 format and contents are completely up to the application, but messages must be presented to
 pubsub as newline terminated strings.
 
+### pub = new QPubs( options )
+
+Create a pubsub engine.
+
+Options:
+- `separator` - partitioned topic segment separator, default `.` dot.
+
 ### pub.publish( topic, message [,callback(err)] )
 
 Send a message to the named topic.  Sending a message delivers it to each attached
@@ -42,14 +49,32 @@ order.  Messages are removed from the queue once ack-ed as received.
 Note that the message queues are persisted from pubsub topics, and are not written or
 published to directly.
 
-### sub.openSubscription( topic, subId, [options,] callback(err) )
+### sub = new QSubs( dirname, qpubs )
 
-Manage the subscription identified by `subId`.  The subscription id must be unique, even
-across different topics; the topic name is present for symmetry but is used only if creating
-a new subscription.  The `callback` is used to report success status.
+Manage subscriptions to `qpubs` topics, queueing messages into the `dirname` directory.
+
+Options:
+- `reopenInterval` TBD
+
+### sub.openSubscription( topic, subId, [options,] [deliver(messages, ack(err)),] callback(err) )
+
+Manage the subscription identified by `subId`.  Can create and listen to subscriptions.
+The subscription id must be unique, even across different topics; the topic name is present
+for symmetry but is used only if creating a new subscription.  The `callback` is used to
+report success status.
+
+If provided, arrange for `deliver` to be called with batches of the messages sent to `topic`.
+When unsubscribed, store the messages in the subscription identified by `subId` for delivery later.
+The `callback` is called to report subscription success/failure.
+
+Batches are sent as concatenated strings, each newline terminated substring one message.
+Waiting messages are sent first, in order, oldest first.  Serialized messages must not
+contain newlines.  Separating and deserializing messages is up to the subscriber, eg with
+split and JSON.parse.  The `ack` callback must be called for the messages to be consumed;
+timing out or calling `ack` with an error will cause the messages to be resent.
 
 `Options` control how the subscription is managed:
-- `create` ok to create the subscription.  Default `true`, create if cannot reuse.
+- `create` ok to create the subscription.  Default `true`, create if does not exist.
   If this option is false the subscription must already exist.
 - `reuse` ok to reuse the subscription.  Default `true`, use the existing.
   If this option is false it then the subscription must not already exist and `create` must be true.
@@ -60,25 +85,15 @@ a new subscription.  The `callback` is used to report success status.
 - `resume` TBD
 - `freeze` TBD (entire fifo)
 - `unfreeze` TBD
+- `batchDataLimit` TBD
+- `batchWaitMs` TBD
 - `delete` cancel the subscription, discard all its undelivered messages, and destroy the
   associated message queue.  Default `false`.  The discarded messages are lost.  The
   subscription will have to be created anew with a separate call before it can be used
   again.  This option trumps the others: if set to true, when the call returns the
   subscription will not exist,
 
-### sub.subscribe( topic, subId, deliver(messages, ack(err)), callback(err) )
-
-Have `deliver` be called with batches of the messages sent to `topic`.  When unsubscribed,
-store the messages in the subscription identified by `subId` for delivery later.  The
-`callback` is called to report success/failure status.
-
-Batches are sent as concatenated strings, each newline terminated substring one message.
-Waiting messages are sent first, in order, oldest first.  Serialized messages must not
-contain newlines.  Separating and deserializing messages is up to the subscriber, eg with
-split and JSON.parse.  The `ack` callback must be called for the messages to be consumed;
-timing out or calling `ack` with an error will cause the messages to be resent.
-
-### sub.unsubscribe( topic, subId, deliver, callback(err) )
+### sub.closeSubscription( topic, subId, deliver, callback(err) )
 
 Stop calling `deliver` with messages from `topic`, append them to the subscription message
 queue instead.  Unsubscribing more than once is ok, but the subscription must already exist,
@@ -86,6 +101,14 @@ else an error is returned.  Unsubscribe just suspends message delivery, any mess
 accumulate will be delivered after the next `subscribe` call.  To cancel the subscription
 the `delete` option must be set to `true`.  The `callback` is called once the listener has
 been removed, or on error.
+
+### sub.createSubscription( topic, subId, [options,] callback(err) )
+
+Create a new subscription.  Same as calling `openSubscription` with `{create: true, reuse: false}`.
+
+### sub.deleteSubscription( topid, subId, callback(err) )
+
+Cancel the subscription.  Same as calling `openSubscription` with `{delete: true}`.
 
 
 ## Glossary
