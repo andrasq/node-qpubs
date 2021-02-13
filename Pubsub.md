@@ -59,9 +59,9 @@ Options:
 ### sub.openSubscription( topic, subId, [options,] [deliver(messages, ack(err)),] callback(err) )
 
 Manage the subscription identified by `subId`.  Can create and listen to subscriptions.
-The subscription id must be unique, even across different topics; the topic name is present
-for symmetry but is used only if creating a new subscription.  The `callback` is used to
-report success status.
+The subscription id must be unique, even across different topics.  The topic name is present
+for symmetry with the other calls, but is used only if creating a new subscription.
+The `callback` is used to report success status.
 
 If provided, arrange for `deliver` to be called with batches of the messages sent to `topic`.
 When unsubscribed, store the messages in the subscription identified by `subId` for delivery later.
