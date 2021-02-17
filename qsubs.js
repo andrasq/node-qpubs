@@ -26,6 +26,7 @@ function QSubs( dirname, qpubs, fifoFactory ) {
     this.subscriptions = {};
     this.fifos = {};
     this.appenders = {};
+    this.deliverers = {};
 }
 
 /*
@@ -37,52 +38,150 @@ QSubs.prototype.loadSubscriptions = function loadSubscriptions( ) {
     this.subscriptions = this.loadIndex().subscriptions;
     for (var subId in this.subscriptions) {
         var topic = this.subscriptions[subId];
-        this.subscribe(topic, subId);
+        this.openSubscription(topic, subId, function(err) { if (err) throw err });
     }
 }
 
-QSubs.prototype.subscribe = function subscribe( topic, subId ) {
+/*
+ * Ensure that the specified subscription exists.
+ */
+QSubs.prototype.createSubscription = function createSubscription( topic, subId, options, callback ) {
+    if (!callback) { callback = options; options = { create: true, reuse: true, delete: false } }
     var fifo = this.fifos[subId];
-    if (!fifo) {
-        if (this.needFifoDir) { this.mkdir_p(this.dirname); this.needFifoDir = false }
-        // TODO: maybe hash to 2^N subdirs, eg 32
-        fifo = this.fifoFactory.create(this.dirname + '/f.' + subId);
-        this.fifos[subId] = fifo;
-        this.subscriptions[subId] = topic;
+    if (fifo) return callback(null, subId);
 
-        var self = this;
-        var listener = function(message, cb) {
-            var m = self.serializeMessage(message);
-            if (!m) return cb(new Error('unable to serialize message'));
-            fifo.putline(m);
-            fifo.fflush(cb);
-            // TODO: batch calls, flush less often
-            cb();
-        }
-        this.appenders[subId] = listener;
-        this.qpubs.listen(topic, listener);
-        // TODO: track how long a subscription has been idle, and clean up (auto-unsubscribe) after a week
+    // delete trumps all other options
+    if (options.delete === true) return this.closeSubscription(topic, subId, options, callback);
+
+    if (this.needFifoDir) { this.mkdir_p(this.dirname); this.needFifoDir = false }
+    // TODO: maybe hash to 2^N subdirs, eg 32
+    fifo = this.fifoFactory.create(this.dirname + '/f.' + subId);
+    this.fifos[subId] = fifo;
+    this.subscriptions[subId] = topic;
+
+    var self = this;
+    var listener = function(message, cb) {
+        var m = self.serializeMessage(message);
+        if (!m) return cb(new Error('unable to serialize message'));
+        fifo.putline(m);
+        fifo.fflush(cb);
+        // TODO: batch calls, flush less often
+        cb();
     }
-    // FIXME: arrange to deliver subscriptions to the registered recipient(s),
-    // eg batch and ship via http callbacks
-    return subId;
+    this.appenders[subId] = listener;
+    this.qpubs.listen(topic, listener);
+    // TODO: track how long a subscription has been idle, and clean up (auto-unsubscribe) after a while
+    callback(null, subId);
 }
 
-QSubs.prototype.unsubscribe = function unsubscribe( subId, callback ) {
+/*
+ * Delete the given subscription, stop delivering its messages, discard its backlog.
+ */
+QSubs.prototype.deleteSubscription = function deleteSubscription( topic, subId, callback ) {
+    if (typeof topic !== 'string' || typeof subId !== 'string') throw new Error('string topic, subId required');
+    if (typeof callback !== 'function') throw new Error('callback required');
     var fifo = this.fifos[subId];
-    if (!fifo) return callback();
-    this.qpubs.unlisten(this.subscriptions[subId], this.listeners[subId]);
+    if (!fifo) return callback(null, false);
+
+    this.qpubs.unlisten(this.subscriptions[subId], this.appenders[subId]);
+    this.appenders[subId] = undefined;
     this.fifos[subId] = undefined;
     this.subscriptions[subId] = undefined;
-    this.appenders[subId] = undefined;
     fifo.close();
     try { fs.unlinkSync(this.dirname + '/f.' + subId) } catch (e) {}
     try { fs.unlinkSync(this.dirname + '/f.' + subId + '.hd') } catch (e) {}
     this.saveIndex(callback);
-    // FIXME: should not delete, just stop getting updates
-    // if (options.delete) this.closeSubscription(...)
-    this.closeSubscription(this.subscriptions[subId], subId, { delete: true }, callback);
 }
+
+QSubs.prototype.openSubscription = function openSubscription( topic, subId, options, handler, callback ) {
+    if (typeof topic !== 'string' || typeof subId !== 'string') throw new Error('string topic, subId required');
+    if (typeof options === 'function') { callback = handler; handler = options; options = {} }
+    if (!callback) { callback = handler; handler = null }
+    callback = callback || function(){};
+    options = options || {};
+    var self = this;
+
+    var fifo = this.fifos[subId];
+    if (fifo) {
+        if (options.delete === true) this.closeSubscription(topic, subId, options, subscribe);
+        else if (options.reuse === false) callback(new Error(subId + ': exists, may not reuse'));
+        else subscribe(null, subId);
+    }
+    else {
+        if (options.delete === true) callback(null, false);
+        else if (options.create === false) callback(new Error(subId + ': not found, may not create'));
+        // the subscription does not exist, create it
+        else this.createSubscription(topic, subId, subscribe);
+    }
+
+    function subscribe( err ) {
+        var batchDataLimit = 2048 * 1024;   // 2 MB batches in bulk mode
+        var batchTimeout = 5;               // wait 5 ms to grow batch before delivering
+        // TODO: pass in limits and timeouts
+
+        if (err || !handler) return callback(err);
+        // TODO: allow multiple listeners, round-robin distribute messages
+        if (self.deliverers[subId]) return callback(new Error(subId + ': already listening'));
+
+        var retry = new Retry();
+        var fifo = self.fifos[subId];
+        var batchTimer;
+
+        var lines = '';
+        function deliverLine(line) {
+            lines += line;
+            while (lines.length < batchDataLimit && (line = fifo.getline())) lines += line;
+            if (lines.length >= batchDataLimit || !self.subscriptions[subId]) deliverBatch();
+            else if (!batchTimer) batchTimer = setTimeout(deliverBatch, batchTimeout);
+        };
+        function deliverBatch() {
+            clearTimeout(batchTimer);
+            fifo.pause();
+            handler(lines, function(err) {
+                // wait for the handler to ack receipt before advancing past the lines
+                if (err) return setTimeout(function() { deliver('') }, retry.delay());
+                fifo.rsync(function(err) {
+// FIXME: fifo errors are fatal, fifo is broken, should close it
+                    if (err) { self.closeSubscription(topic, subId, function(){}); return }
+                    lines = '';
+                    lineCount = 0;
+                    // the handler could have unsubscribed, check again
+                    if (fifo.seekoffset > 10 * 1024 * 1024) {
+// FIXME: need to periodically compact or rotate/reopen the fifo
+                        // fifo.compact();
+                        // ?? (or maybe rotate x -> x.1 ; rename x.1 to x.0 ; readlines x.0)
+                    }
+                    if (self.subscriptions[subId]) fifo.resume();
+                })
+            })
+        }
+        self.deliverers[subId] = deliverBatch;
+        fifo.readlines(deliverLine);
+        fifo.resume();
+        callback();
+    }
+}
+
+QSubs.prototype.closeSubscription = function closeSubscription( topic, subId, options, callback ) {
+    if (!callback) { callback = options; options = { create: true, reuse: true, delete: false } }
+    var fifo = this.fifos[subId];
+    if (!fifo) return callback(null, false);
+
+    this.fifos[subId].pause();                  // stop reading the fifo
+    this.subscriptions[subId] = undefined;      // mark the fifo unsubscribed
+
+    if (options.delete === true) this.deleteSubscription(topic, subId, callback);
+    // TODO: options.discard (TBD: should it discard just the current backlog, or also stop listening?)
+    else setImmediate(function() { callback(null, subId) });
+}
+
+// unbounded linear backoff
+function Retry( ) {
+    this.maxDelay = 5000;
+    this.addedDelay = 100;
+    this.backoff = 0;
+}
+Retry.prototype.delay = function delay() { return this.backoff >= this.maxDelay ? this.maxDelay : this.backoff += this.addedDelay };
 
 // Read and return the saved index file.
 QSubs.prototype.loadIndex = function loadIndex( ) {
@@ -110,3 +209,10 @@ QSubs.prototype.serializeMessage = function serializeMessage( m ) {
 
 QSubs.prototype = toStruct(QSubs.prototype);
 function toStruct(hash) { return toStruct.prototype = hash }
+
+
+// extractTo from minisql
+function extractTo( dst, src, mask ) {
+    for (var k in mask) dst[k] = src[k];
+    return dst;
+}

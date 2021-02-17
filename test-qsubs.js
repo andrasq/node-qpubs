@@ -44,11 +44,11 @@ module.exports = {
         },
     },
 
-    'subscribe': {
+    'openSubscription': {
         'initializes': function(t) {
             var uut = this.uut;
             var spyListen = t.spy(uut.qpubs, 'listen');
-            uut.subscribe('topic-1', 'sub-1');
+            uut.openSubscription('topic-1', 'sub-1', function(){});
             t.equal(uut.subscriptions['sub-1'], 'topic-1');
             t.ok(uut.fifos['sub-1'] instanceof QFifo);
             t.equal(typeof uut.appenders['sub-1'], 'function');
@@ -59,7 +59,7 @@ module.exports = {
         },
 
         'listener appends to fifo': function(t) {
-            this.uut.subscribe('topic-1', 'sub-1');
+            this.uut.openSubscription('topic-1', 'sub-1');
             var fifo = this.uut.fifos['sub-1'];
             var spy = t.stub(fifo, 'putline');
             var spyFlush = t.stub(fifo, 'fflush');
@@ -73,10 +73,10 @@ module.exports = {
         },
 
         'edge cases': {
-            'is a noop if already subscribed': function(t) {
-                this.uut.subscribe('topic-1', 'sub-1');
+            'uses existing fifo if already subscribed': function(t) {
+                this.uut.openSubscription('topic-1', 'sub-1');
                 var fifo1 = this.uut.fifos['sub-1'];
-                this.uut.subscribe('topic-1', 'sub-1');
+                this.uut.openSubscription('topic-1', 'sub-1');
                 var fifo2 = this.uut.fifos['sub-1'];
                 t.equal(fifo2, fifo1);
                 t.done();
@@ -87,7 +87,7 @@ module.exports = {
         },
     },
 
-    'unsubscribe': {
+    'closeSubscription': {
         'cleans up': function(t) {
             var uut = this.uut;
             uut.mkdir_p(uut.dirname);
@@ -96,7 +96,7 @@ module.exports = {
             var spyClose = t.spyOnce(uut.fifos['sub-1'], 'close');
             var spyUnlink = t.spy(fs, 'unlinkSync');
             var spySave = t.spy(uut, 'saveIndex');
-            uut.unsubscribe('sub-1', function(err) {
+            uut.closeSubscription('top-1', 'sub-1', function(err) {
                 t.ifError(err);
                 t.equal(uut.subscriptions['sub-1'], undefined);
                 t.equal(uut.fifos['sub-1'], undefined);
@@ -112,10 +112,21 @@ module.exports = {
 
         'edge cases': {
             'tolerates bad subId': function(t) {
-                this.uut.unsubscribe('nonesuch-sub-id', t.done);
+                this.uut.closeSubscription('topic-1', 'nonesuch-sub-id', t.done);
             },
             'tolerates missing subId': function(t) {
-                this.uut.unsubscribe(null, t.done);
+                this.uut.closeSubscription('topic-1', null, t.done);
+            },
+            'deletes subscription': function(t) {
+                var uut = this.uut;
+                uut.openSubscription('topic-1', 'sub-1', function(){}, function(err) {
+                    t.ifError(err);
+                    uut.closeSubscription('topic-1', 'sub-1', {delete: true}, function(err) {
+                        t.ifError(err);
+                        t.equal(uut.subscriptions['sub-1'], undefined);
+                        t.done();
+                    })
+                })
             },
         },
     },
