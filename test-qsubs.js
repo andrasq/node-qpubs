@@ -130,31 +130,35 @@ module.exports = {
     },
 
     'openSubscription': {
-        'initializes': function(t) {
+        'creates a fifo and listens on it': function(t) {
             var uut = this.uut;
             var spyListen = t.spy(uut.qpubs, 'listen');
-            uut.openSubscription('topic-1', 'sub-1', function(){});
-            t.equal(uut.subscriptions['sub-1'], 'topic-1');
-            t.ok(uut.fifos['sub-1'] instanceof QFifo);
-            t.equal(typeof uut.appenders['sub-1'], 'function');
-            t.equal(spyListen.callCount, 1);
-            t.equal(spyListen.args[0][0], 'topic-1');
-            t.equal(spyListen.args[0][1], uut.appenders['sub-1']);
-            t.done();
+            uut.fifoFactory = this.fifoFactory;
+            uut.openSubscription('topic-1', 'sub-1', function(){
+                t.equal(uut.subscriptions['sub-1'], 'topic-1');
+                t.ok(uut.fifos['sub-1'] instanceof QFifo);
+                t.equal(typeof uut.appenders['sub-1'], 'function');
+                t.equal(spyListen.callCount, 1);
+                t.equal(spyListen.args[0][0], 'topic-1');
+                t.equal(spyListen.args[0][1], uut.appenders['sub-1']);
+                t.done();
+            })
         },
 
-        'listener appends to fifo': function(t) {
-            this.uut.openSubscription('topic-1', 'sub-1');
-            var fifo = this.uut.fifos['sub-1'];
-            var spy = t.stub(fifo, 'putline');
-            var spyFlush = t.stub(fifo, 'fflush');
-            this.uut.appenders['sub-1']('message-1\n', noop);
-            this.uut.appenders['sub-1']('message-2\n', noop);
-            var invalidObject = {}; invalidObject.self = invalidObject;
-            this.uut.appenders['sub-1'](invalidObject, noop);
-            t.equal(spy.callCount, 2);
-            t.deepEqual(spy.args, [ [ 'message-1\n' ], [ 'message-2\n' ] ]);
-            t.done();
+        'pubsub listener appends to fifo': function(t) {
+            var uut = this.uut;
+            uut.openSubscription('topic-1', 'sub-1', function(err) {
+                var fifo = uut.fifos['sub-1'];
+                var spy = t.stub(fifo, 'putline');
+                var spyFlush = t.stub(fifo, 'fflush');
+                uut.appenders['sub-1']('message-1\n', noop);
+                uut.appenders['sub-1']('message-2\n', noop);
+                var invalidObject = {}; invalidObject.self = invalidObject;
+                uut.appenders['sub-1'](invalidObject, noop);
+                t.equal(spy.callCount, 2);
+                t.deepEqual(spy.args, [ [ 'message-1\n' ], [ 'message-2\n' ] ]);
+                t.done();
+            })
         },
 
         'edge cases': {
@@ -178,19 +182,12 @@ module.exports = {
             uut.mkdir_p(uut.dirname);
             t.stubOnce(uut, 'loadIndex').returns({ subscriptions: { 'sub-1': 'top-1' } });
             uut.loadSubscriptions();
-            var spyClose = t.spyOnce(uut.fifos['sub-1'], 'close');
-            var spyUnlink = t.spy(fs, 'unlinkSync');
-            var spySave = t.spy(uut, 'saveIndex');
             uut.closeSubscription('top-1', 'sub-1', function(err) {
                 t.ifError(err);
                 t.equal(uut.subscriptions['sub-1'], undefined);
-                t.equal(uut.fifos['sub-1'], undefined);
-                t.equal(uut.appenders['sub-1'], undefined);
-                t.ok(spyClose.called);
-                t.ok(spyUnlink.called);
-                t.ok(spyUnlink.args[0][0], uut.dirname + '/f.sub-1');
-                t.ok(spyUnlink.args[1][0], uut.dirname + '/f.sub-1.hd');
-                t.ok(spySave.called);
+                // keeps the fifo and continues to listen and append messages
+                t.equal(typeof uut.fifos['sub-1'], 'object');
+                t.equal(typeof uut.appenders['sub-1'], 'function');
                 t.done();
             })
         },
@@ -199,13 +196,21 @@ module.exports = {
             'tolerates bad subId': function(t) {
                 this.uut.closeSubscription('topic-1', 'nonesuch-sub-id', t.done);
             },
-            'deletes subscription': function(t) {
+            'can also delete subscription': function(t) {
                 var uut = this.uut;
                 uut.openSubscription('topic-1', 'sub-1', function(){}, function(err) {
                     t.ifError(err);
+                    var spyClose = t.spyOnce(uut.fifos['sub-1'], 'close');
+                    var spyUnlink = t.spy(fs, 'unlinkSync');
+                    var spySave = t.spy(uut, 'saveIndex');
                     uut.closeSubscription('topic-1', 'sub-1', {delete: true}, function(err) {
                         t.ifError(err);
                         t.equal(uut.subscriptions['sub-1'], undefined);
+                        t.ok(spyClose.called);
+                        t.ok(spyUnlink.called);
+                        t.ok(spyUnlink.args[0][0], uut.dirname + '/f.sub-1');
+                        t.ok(spyUnlink.args[1][0], uut.dirname + '/f.sub-1.hd');
+                        t.ok(spySave.called);
                         t.done();
                     })
                 })

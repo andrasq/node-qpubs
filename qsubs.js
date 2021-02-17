@@ -148,7 +148,6 @@ QSubs.prototype.openSubscription = function openSubscription( topic, subId, opti
 // FIXME: fifo errors are fatal, fifo is broken, should close it
                     if (err) { self.closeSubscription(topic, subId, function(){}); return }
                     lines = '';
-                    lineCount = 0;
                     // the handler could have unsubscribed, check again
                     if (fifo.seekoffset > 10 * 1024 * 1024) {
 // FIXME: need to periodically compact or rotate/reopen the fifo
