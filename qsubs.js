@@ -14,10 +14,15 @@ module.exports = QSubs;
 var fs = require('fs');
 var QFifo = require('qfifo');
 
-function QSubs( dirname, qpubs ) {
+// var setImmediate = eval('global.setImmediate || function(fn) { process.nextTick(fn) }');
+
+function QSubs( dirname, qpubs, fifoFactory ) {
     this.dirname = dirname;
-    this.needFifoDir = true;
     this.qpubs = qpubs;
+    this.fifoFactory = fifoFactory || { create: function(name, opts) { return new QFifo(name, opts) } };
+
+    this.indexfile = dirname + '/index.json';
+    this.needFifoDir = true;
     this.subscriptions = {};
     this.fifos = {};
     this.appenders = {};
@@ -25,7 +30,7 @@ function QSubs( dirname, qpubs ) {
 
 /*
  * Resubscribe to all registered subscriptions found in index.json
- * Typically called when restarting a stopped pubsub service.
+ * Typically called when restarting a stopped subscription service.
  */
 QSubs.prototype.loadSubscriptions = function loadSubscriptions( ) {
     var fifoPatt = /^f\.(.*)$/;
@@ -41,7 +46,7 @@ QSubs.prototype.subscribe = function subscribe( topic, subId ) {
     if (!fifo) {
         if (this.needFifoDir) { this.mkdir_p(this.dirname); this.needFifoDir = false }
         // TODO: maybe hash to 2^N subdirs, eg 32
-        fifo = new QFifo(this.dirname + '/f.' + subId);
+        fifo = this.fifoFactory.create(this.dirname + '/f.' + subId);
         this.fifos[subId] = fifo;
         this.subscriptions[subId] = topic;
 
@@ -81,16 +86,14 @@ QSubs.prototype.unsubscribe = function unsubscribe( subId, callback ) {
 
 // Read and return the saved index file.
 QSubs.prototype.loadIndex = function loadIndex( ) {
-    var filename = this.dirname + '/index.json';
-    try { return JSON.parse(String(fs.readFileSync(filename)) || '{}') } catch (err) { return {} }
+    try { return JSON.parse(String(fs.readFileSync(this.indexfile)) || '{}') } catch (err) { return {} }
 }
 
 // Generate an index file corresponding to the current state.
 QSubs.prototype.saveIndex = function saveIndex( callback ) {
-    var filename = this.dirname + '/index.json';
     var info = { subscriptions: this.subscriptions };
     // TODO: createTime, accessTime for stats and gc
-    fs.writeFile(filename, JSON.stringify(info, null, 2), callback);
+    fs.writeFile(this.indexfile, JSON.stringify(info, null, 2), callback);
 }
 
 // create the directory if not exists, throw on error
@@ -104,3 +107,6 @@ QSubs.prototype.serializeMessage = function serializeMessage( m ) {
     if (typeof m === 'string' || Buffer.isBuffer(m)) return m;
     try { return JSON.stringify(m) + '\n' } catch (e) { return '' }
 }
+
+QSubs.prototype = toStruct(QSubs.prototype);
+function toStruct(hash) { return toStruct.prototype = hash }
