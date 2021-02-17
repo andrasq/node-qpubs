@@ -53,13 +53,11 @@ QSubs.prototype.saveSubscriptions = function saveSubscriptions( callback ) {
  * Ensure that the specified subscription exists.
  */
 QSubs.prototype.createSubscription = function createSubscription( topic, subId, options, callback ) {
-    if (typeof topic !== 'string' || typeof subId !== 'string') throw new Error('string topic, subId required');
-    if (!callback) { callback = options; options = { create: true, reuse: true, delete: false } }
-    var fifo = this.fifos[subId];
-    if (fifo) return callback(null, subId);
+    var args = normalizeArgs(topic, subId, options, callback);
+    options = args.options, callback = args.callback;
 
-    // delete trumps all other options
-    if (options.delete === true) return this.closeSubscription(topic, subId, options, callback);
+    var fifo = this.fifos[subId];
+    if (fifo) return callback(null, subId);     // all set if already exists
 
     if (this.needFifoDir) { this.mkdir_p(this.dirname); this.needFifoDir = false }
     // TODO: maybe hash to 2^N subdirs, eg 32
@@ -86,8 +84,7 @@ QSubs.prototype.createSubscription = function createSubscription( topic, subId, 
  * Delete the given subscription, stop delivering its messages, discard its backlog.
  */
 QSubs.prototype.deleteSubscription = function deleteSubscription( topic, subId, callback ) {
-    if (typeof topic !== 'string' || typeof subId !== 'string') throw new Error('string topic, subId required');
-    if (typeof callback !== 'function') throw new Error('callback required');
+    callback = normalizeArgs(topic, subId, callback).callback;
     var fifo = this.fifos[subId];
     if (!fifo) return callback(null, false);
 
@@ -98,15 +95,14 @@ QSubs.prototype.deleteSubscription = function deleteSubscription( topic, subId, 
     fifo.close();
     try { fs.unlinkSync(this.dirname + '/f.' + subId) } catch (e) {}
     try { fs.unlinkSync(this.dirname + '/f.' + subId + '.hd') } catch (e) {}
-    this.saveIndex(callback);
+    this.saveIndex(function(err) {
+        callback(err, subId);
+    })
 }
 
 QSubs.prototype.openSubscription = function openSubscription( topic, subId, options, handler, callback ) {
-    if (typeof topic !== 'string' || typeof subId !== 'string') throw new Error('string topic, subId required');
-    if (typeof options === 'function') { callback = handler; handler = options; options = {} }
-    if (!callback) { callback = handler; handler = null }
-    callback = callback || function(){};
-    options = options || {};
+    var args = normalizeArgs(topic, subId, options, handler, callback);
+    options = args.options, handler = args.handler, callback = args.callback;
     var self = this;
 
     var fifo = this.fifos[subId];
@@ -226,4 +222,12 @@ function toStruct(hash) { return toStruct.prototype = hash }
 function extractTo( dst, src, mask ) {
     for (var k in mask) dst[k] = src[k];
     return dst;
+}
+
+function normalizeArgs( topic, subId, options, handler, callback ) {
+    if (typeof topic !== 'string' || typeof subId !== 'string') throw new Error('string topic, subId required');
+    if (typeof options === 'function') { callback = handler; handler = options; options = {} }
+    if (!callback) { callback = handler; handler = null }
+    if (typeof callback !== 'function') throw new Error('callback required');
+    return { topic: topic, subId: subId, options: options, handler: handler, callback: callback };
 }

@@ -46,7 +46,7 @@ module.exports = {
         'creates fifos for the f.* subscriptions found and configured': function(t) {
             var uut = this.uut;
             t.stubOnce(uut, 'loadIndex').returns({ subscriptions: { 'sub-1': 't-1', 'sub-3': 't-3', 'sub-4': 't-4' } });
-            uut.loadSubscriptions(this.mockPubs);
+            uut.loadSubscriptions();
             setTimeout(function() {
                 t.ok(uut.fifos['sub-1']);
                 t.ok(! uut.fifos['sub-2']);
@@ -77,12 +77,55 @@ module.exports = {
                 t.throws(function() { uut.createSubscription(1, 'id1') }, /topic.* required/);
                 t.done();
             },
+            'reuses an existing fifo': function(t) {
+                var uut = this.uut;
+                uut.fifos['sub23'] = 'mock fifo';
+                uut.createSubscription('topic1', 'sub23', function(err, subId) {
+                    t.equal(subId, 'sub23');
+                    t.equal(uut.fifos['sub23'], 'mock fifo');
+                    t.done();
+                })
+            },
         },
     },
 
     'deleteSubscription': {
-        'saves revised index': function(t) {
-t.skip();
+        'closes the fifo': function(t) {
+            var uut = this.uut;
+            uut.createSubscription('t1', 'sub23', function(err, subId) {
+                t.ifError(err);
+                var spy = t.spyOnce(uut.fifos['sub23'], 'close');
+                uut.deleteSubscription('t1', 'sub23', function(err, subId) {
+                    t.ifError(err);
+                    t.equal(subId, 'sub23');
+                    t.ok(spy.called);
+                    t.done();
+                })
+            })
+        },
+        'removes the fifo and saves the revised index': function(t) {
+            var dirname = this.dirname;
+            this.uut.fifos['sub123'] = this.mockFifoFactory.create();
+            var spy = t.spyOnce(fs, 'unlinkSync');
+            var spySave = t.spyOnce(this.uut, 'saveIndex');
+            t.stubOnce(fs, 'writeFile').yields('writeFile ran');
+            this.uut.deleteSubscription('t1', 'sub123', function(err, subId) {
+                t.equal(err, 'writeFile ran');
+                t.equal(subId, 'sub123');
+                t.ok(spy.called);
+                t.equal(spy.args[0][0], dirname + '/f.sub123');
+                t.ok(spySave.called);
+                t.done();
+            })
+        },
+        'edge cases': {
+            'returns false if subscription not found': function(t) {
+                this.uut.deleteSubscription('topic123', 'nonesuch-subscription-id', function(err, subId) {
+                    t.ifError(err);
+                    t.strictEqual(subId, false);
+                    t.done();
+                })
+            },
         },
     },
 
@@ -116,9 +159,9 @@ t.skip();
 
         'edge cases': {
             'uses existing fifo if already subscribed': function(t) {
-                this.uut.openSubscription('topic-1', 'sub-1');
+                this.uut.openSubscription('topic-1', 'sub-1', noop);
                 var fifo1 = this.uut.fifos['sub-1'];
-                this.uut.openSubscription('topic-1', 'sub-1');
+                this.uut.openSubscription('topic-1', 'sub-1', noop);
                 var fifo2 = this.uut.fifos['sub-1'];
                 t.equal(fifo2, fifo1);
                 t.done();
