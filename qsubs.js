@@ -13,7 +13,7 @@ module.exports = QSubs;
 
 var fs = require('fs');
 
-// var setImmediate = eval('global.setImmediate || function(fn) { process.nextTick(fn) }');
+var setImmediate = eval('global.setImmediate || function(fn) { process.nextTick(fn) }');
 
 function QSubs( dirname, qpubs, fifoFactory ) {
     this.dirname = dirname;

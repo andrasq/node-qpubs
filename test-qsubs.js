@@ -236,7 +236,7 @@ module.exports = {
                 this.uut.fifos['id456'] = this.mockFifoFactory.create();
                 this.uut.closeSubscription('t123', 'id456', { delete: true, other: 789 }, noop);
                 t.ok(spy.called);
-                t.deepEqual(spy.args[0], { 0: 't123', 1: 'id456', 2: noop });
+                t.deepEqual(spy.args[0], ['t123', 'id456', noop]);
                 t.done();
             },
         },
