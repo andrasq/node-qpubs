@@ -14,7 +14,8 @@ module.exports = {
 
     beforeEach: function() {
         this.mockPubs = { listen: noop, unlisten: noop };
-        this.uut = new QSubs(this.dirname, this.mockPubs);
+        this.mockFifoFactory = { create: function(file, opts) { return new QFifo(file, opts) } };
+        this.uut = new QSubs(this.dirname, this.mockPubs, this.mockFifoFactory);
     },
 
     afterEach: function() {
@@ -41,6 +42,18 @@ module.exports = {
                 t.ok(uut.fifos['sub-4']);
                 t.done();
             }, 2)
+        },
+    },
+
+    'saveSubscriptions': {
+    },
+
+    'createSubscription': {
+    },
+
+    'deleteSubscription': {
+        'saves revised index': function(t) {
+t.skip();
         },
     },
 

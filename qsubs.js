@@ -12,17 +12,17 @@
 module.exports = QSubs;
 
 var fs = require('fs');
-var QFifo = require('qfifo');
 
 // var setImmediate = eval('global.setImmediate || function(fn) { process.nextTick(fn) }');
 
 function QSubs( dirname, qpubs, fifoFactory ) {
     this.dirname = dirname;
-    this.qpubs = qpubs;
-    this.fifoFactory = fifoFactory || { create: function(name, opts) { return new QFifo(name, opts) } };
-
     this.indexfile = dirname + '/index.json';
     this.needFifoDir = true;
+
+    this.qpubs = qpubs;
+    this.fifoFactory = fifoFactory;
+
     this.subscriptions = {};
     this.fifos = {};
     this.appenders = {};
@@ -40,6 +40,13 @@ QSubs.prototype.loadSubscriptions = function loadSubscriptions( ) {
         var topic = this.subscriptions[subId];
         this.openSubscription(topic, subId, function(err) { if (err) throw err });
     }
+}
+
+/*
+ * Checkpoint the state of the subscriptions
+ */
+QSubs.prototype.saveSubscriptions = function saveSubscriptions( callback ) {
+    this.saveIndex(callback);
 }
 
 /*
