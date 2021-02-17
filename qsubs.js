@@ -53,6 +53,7 @@ QSubs.prototype.saveSubscriptions = function saveSubscriptions( callback ) {
  * Ensure that the specified subscription exists.
  */
 QSubs.prototype.createSubscription = function createSubscription( topic, subId, options, callback ) {
+    if (typeof topic !== 'string' || typeof subId !== 'string') throw new Error('string topic, subId required');
     if (!callback) { callback = options; options = { create: true, reuse: true, delete: false } }
     var fifo = this.fifos[subId];
     if (fifo) return callback(null, subId);
@@ -170,7 +171,10 @@ QSubs.prototype.openSubscription = function openSubscription( topic, subId, opti
 }
 
 QSubs.prototype.closeSubscription = function closeSubscription( topic, subId, options, callback ) {
-    if (!callback) { callback = options; options = { create: true, reuse: true, delete: false } }
+    if (typeof topic !== 'string' || typeof subId !== 'string') throw new Error('string topic, subId required');
+    if (!callback) { callback = options; options = {} }
+    if (typeof callback !== 'function') throw new Error('callback required');
+
     var fifo = this.fifos[subId];
     if (!fifo) return callback(null, false);
 

@@ -5,6 +5,7 @@ var QSubs = require('./qsubs');
 var QFifo = require('qfifo');
 
 var fromBuf = parseInt(process.versions.node) > 6 ? Buffer.from : Buffer;
+var noop = function(){};
 
 module.exports = {
     before: function() {
@@ -14,7 +15,18 @@ module.exports = {
 
     beforeEach: function() {
         this.mockPubs = { listen: noop, unlisten: noop };
-        this.mockFifoFactory = { create: function(file, opts) { return new QFifo(file, opts) } };
+        this.fifoFactory = { create: function(file, opts) { return new QFifo(file, opts) } };
+        this.mockFifoFactory = { create: function(file, opts) {
+            return {
+                open: function() {},
+                close: function() {},
+                putline: function(line) {},
+                getline: function() { return '' },
+                readlines: function(cb) {},
+                pause: function() {},
+                resume: function() {},
+            }
+        } };
         this.uut = new QSubs(this.dirname, this.mockPubs, this.mockFifoFactory);
     },
 
@@ -46,9 +58,26 @@ module.exports = {
     },
 
     'saveSubscriptions': {
+        'calls saveIndex': function(t) {
+            var spy = t.stub(this.uut, 'saveIndex').yields(null, 'called=true');
+            this.uut.saveSubscriptions(function(err, ret) {
+                t.ok(spy.called);
+                t.equal(ret, 'called=true');
+                t.done();
+            })
+        },
     },
 
     'createSubscription': {
+        'edge cases': {
+            'requires topic and subId': function(t) {
+                var uut = this.uut;
+                t.throws(function() { uut.createSubscription() }, /topic.* required/);
+                t.throws(function() { uut.createSubscription('t1') }, /subId.* required/);
+                t.throws(function() { uut.createSubscription(1, 'id1') }, /topic.* required/);
+                t.done();
+            },
+        },
     },
 
     'deleteSubscription': {
@@ -127,9 +156,6 @@ t.skip();
             'tolerates bad subId': function(t) {
                 this.uut.closeSubscription('topic-1', 'nonesuch-sub-id', t.done);
             },
-            'tolerates missing subId': function(t) {
-                this.uut.closeSubscription('topic-1', null, t.done);
-            },
             'deletes subscription': function(t) {
                 var uut = this.uut;
                 uut.openSubscription('topic-1', 'sub-1', function(){}, function(err) {
@@ -140,6 +166,30 @@ t.skip();
                         t.done();
                     })
                 })
+            },
+            'throws if no topic or subId': function(t) {
+                this.uut.closeSubscription('t1', 'id2', noop);
+                var uut = this.uut;
+                t.throws(function() { uut.closeSubscription() }, /required/);
+                t.throws(function() { uut.closeSubscription('t1', noop) }, /required/);
+                t.throws(function() { uut.closeSubscription('t1', noop, noop) }, /required/);
+                t.throws(function() { uut.closeSubscription('t1', null, noop) }, /required/);
+                t.throws(function() { uut.closeSubscription(null, 'id2', null, noop) }, /required/);
+                t.done();
+            },
+            'throws if no callback': function(t) {
+                this.uut.closeSubscription('t1', 'id2', noop);
+                var uut = this.uut;
+                t.throws(function() { uut.closeSubscription('t1', 'id2') }, /callback required/);
+                t.done();
+            },
+            'hands off deletion to deleteSubscription': function(t) {
+                var spy = t.stub(this.uut, 'deleteSubscription').yields();
+                this.uut.fifos['id456'] = this.mockFifoFactory.create();
+                this.uut.closeSubscription('t123', 'id456', { delete: true, other: 789 }, noop);
+                t.ok(spy.called);
+                t.deepEqual(spy.args[0], { 0: 't123', 1: 'id456', 2: noop });
+                t.done();
             },
         },
     },
@@ -233,5 +283,3 @@ t.skip();
         },
     },
 }
-
-function noop() {}
