@@ -134,6 +134,7 @@ Todo
 Changelog
 ---------
 
+- 0.4.1 - add a callback to loadSubscriptions
 - 0.4.0 - refactor qsubs into create/open/close/delete subscription
 - 0.1.2 - allow listeners to take callbacks, faster emit
 - 0.0.5 - faster unwatched subtopic skipping

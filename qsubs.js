@@ -33,13 +33,17 @@ function QSubs( dirname, qpubs, fifoFactory ) {
  * Resubscribe to all registered subscriptions found in index.json
  * Typically called when restarting a stopped subscription service.
  */
-QSubs.prototype.loadSubscriptions = function loadSubscriptions( ) {
+QSubs.prototype.loadSubscriptions = function loadSubscriptions( callback ) {
     var fifoPatt = /^f\.(.*)$/;
     this.subscriptions = this.loadIndex().subscriptions;
-    for (var subId in this.subscriptions) {
-        var topic = this.subscriptions[subId];
-        this.openSubscription(topic, subId, function(err) { if (err) throw err });
+    var subIds = Object.keys(this.subscriptions);
+    // await N+1 calls, to run callback even if zero subscriptions
+    var cb = _awaitCalls(subIds.length + 1, callback);
+    for (var i = 0; i < subIds.length; i++) {
+        var topic = this.subscriptions[subIds[i]];
+        this.openSubscription(topic, subIds[i], cb);
     }
+    cb(); // call cb() at least once to make sure callback() runs
 }
 
 /*
@@ -181,7 +185,7 @@ QSubs.prototype.closeSubscription = function closeSubscription( topic, subId, op
     else setImmediate(function() { callback(null, subId) });
 }
 
-// unbounded linear backoff
+// bounded linear backoff
 function Retry( ) {
     this.maxDelay = 5000;
     this.addedDelay = 100;
@@ -229,4 +233,16 @@ function normalizeArgs( topic, subId, options, handler, callback ) {
     if (!callback) { callback = handler; handler = null }
     if (typeof callback !== 'function') throw new Error('callback required');
     return { topic: topic, subId: subId, options: options, handler: handler, callback: callback };
+}
+
+// return a function that invokes callback after nexpect calls
+function _awaitCalls( nexpect, callback ) {
+    // TODO: time out
+    var ndone = 0;
+    var errors = [];
+    return function(err) {
+        ndone += 1;
+        if (err) errors.push(err);
+        if (ndone === nexpect && callback) callback(errors[0], errors);
+    }
 }

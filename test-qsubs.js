@@ -55,6 +55,17 @@ module.exports = {
                 t.done();
             }, 2)
         },
+        'returns openSubscription error': function(t) {
+            var uut = this.uut;
+            uut.mkdir_p(uut.dirname);
+            // need some subscriptions for openSubscription to be called
+            fs.writeFileSync(uut.indexfile, JSON.stringify({ subscriptions: {sub1: 'topic1'} }));
+            t.stubOnce(uut, 'openSubscription').yields('mock openSub error');
+            uut.loadSubscriptions(function(err, errors) {
+                t.equal(err, 'mock openSub error');
+                t.done();
+            })
+        },
     },
 
     'saveSubscriptions': {
