@@ -58,7 +58,7 @@ it will be invoked once all recipients have acknowledged the message.  The callb
 return all errors encountered while notifying the listeners, the first error as `err` and
 the all errors in the `errors` array.
 
-### ignore( topic, listener )
+### unlisten( topic, listener )
 
 Make the `listener` stop receiving messages from the given `topic`.  If `listen()` was called
 multiple times for this topic with this `listener`, each `ignore()` undoes one listen.
@@ -134,7 +134,7 @@ Todo
 Changelog
 ---------
 
-- 0.4.1 - add a callback to loadSubscriptions
+- 0.4.1 - add a callback to loadSubscriptions, pass deliver to closeSubscription
 - 0.4.0 - refactor qsubs into create/open/close/delete subscription
 - 0.1.2 - allow listeners to take callbacks, faster emit
 - 0.0.5 - faster unwatched subtopic skipping

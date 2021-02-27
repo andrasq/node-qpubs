@@ -169,13 +169,15 @@ QSubs.prototype.openSubscription = function openSubscription( topic, subId, opti
     }
 }
 
-QSubs.prototype.closeSubscription = function closeSubscription( topic, subId, options, callback ) {
-    if (typeof topic !== 'string' || typeof subId !== 'string') throw new Error('string topic, subId required');
-    if (!callback) { callback = options; options = {} }
-    if (typeof callback !== 'function') throw new Error('callback required');
+QSubs.prototype.closeSubscription = function closeSubscription( topic, subId, options, handler, callback ) {
+    var args = normalizeArgs(topic, subId, options, handler, callback);
+    options = args.options, handler = args.handler, callback = args.callback;
 
     var fifo = this.fifos[subId];
     if (!fifo) return callback(null, false);
+
+    // TODO: match handler
+    // if (!handler) return callback();
 
     this.fifos[subId].pause();                  // stop reading the fifo
     this.subscriptions[subId] = undefined;      // mark the fifo unsubscribed
@@ -190,8 +192,10 @@ function Retry( ) {
     this.maxDelay = 5000;
     this.addedDelay = 100;
     this.backoff = 0;
+    this.delay = function delay() {
+        return this.backoff >= this.maxDelay ? this.maxDelay : this.backoff += this.addedDelay;
+    }
 }
-Retry.prototype.delay = function delay() { return this.backoff >= this.maxDelay ? this.maxDelay : this.backoff += this.addedDelay };
 
 // Read and return the saved index file.
 QSubs.prototype.loadIndex = function loadIndex( ) {
@@ -222,10 +226,12 @@ function toStruct(hash) { return toStruct.prototype = hash }
 
 
 // extractTo from minisql
+/**
 function extractTo( dst, src, mask ) {
     for (var k in mask) dst[k] = src[k];
     return dst;
 }
+**/
 
 function normalizeArgs( topic, subId, options, handler, callback ) {
     if (typeof topic !== 'string' || typeof subId !== 'string') throw new Error('string topic, subId required');

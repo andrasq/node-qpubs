@@ -93,7 +93,7 @@ timing out or calling `ack` with an error will cause the messages to be resent.
   again.  This option trumps the others: if set to true, when the call returns the
   subscription will not exist,
 
-### sub.closeSubscription( topic, subId, deliver, callback(err) )
+### sub.closeSubscription( topic, subId, options, deliver, callback(err) )
 
 Stop calling `deliver` with messages from `topic`, append them to the subscription message
 queue instead.  Unsubscribing more than once is ok, but the subscription must already exist,
@@ -101,6 +101,10 @@ else an error is returned.  Unsubscribe just suspends message delivery, any mess
 accumulate will be delivered after the next `subscribe` call.  To cancel the subscription
 the `delete` option must be set to `true`.  The `callback` is called once the listener has
 been removed, or on error.
+
+Options:
+- `delete` cancel the subscription, discard all its undelivered messages, destroy its message queue.
+  Default `false`.  The discarded messages are lost.
 
 ### sub.createSubscription( topic, subId, [options,] callback(err) )
 
