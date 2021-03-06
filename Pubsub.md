@@ -8,14 +8,15 @@ Pubsub messaging is a _message bus_ that replicates messages to multiple recipie
 near-real time.  Messages are _published_ to a _topic_ and delivered to all _subscribers_ to
 the _topic_.  Message buffering, transport and delivery are abstracted away.  The message
 format and contents are completely up to the application, but messages must be presented to
-pubsub as newline terminated strings.
+pubsub as newline terminated strings.  In essense, nodejs `events.EventEmitter` as a service.
 
 ### pub = new QPubs( options )
 
 Create a pubsub engine.
 
 Options:
-- `separator` - partitioned topic segment separator, default `.` dot.
+- `separator` partitioned topic segment separator character, default `.` dot.
+- `wildcard` partitioned topic prefix / suffix match character, default `*` star.
 
 ### pub.publish( topic, message [,callback(err)] )
 
@@ -98,13 +99,14 @@ timing out or calling `ack` with an error will cause the messages to be resent.
 Stop calling `deliver` with messages from `topic`, append them to the subscription message
 queue instead.  Unsubscribing more than once is ok, but the subscription must already exist,
 else an error is returned.  Unsubscribe just suspends message delivery, any messages that
-accumulate will be delivered after the next `subscribe` call.  To cancel the subscription
+accumulate will be delivered after the next `openSubscription` call.  To cancel the subscription
 the `delete` option must be set to `true`.  The `callback` is called once the listener has
 been removed, or on error.
 
 Options:
 - `delete` cancel the subscription, discard all its undelivered messages, destroy its message queue.
   Default `false`.  The discarded messages are lost.
+- `discard` TBD
 
 ### sub.createSubscription( topic, subId, [options,] callback(err) )
 
@@ -112,7 +114,7 @@ Create a new subscription.  Same as calling `openSubscription` with `{create: tr
 
 ### sub.deleteSubscription( topid, subId, callback(err) )
 
-Cancel the subscription.  Same as calling `openSubscription` with `{delete: true}`.
+Cancel the subscription.  Same as calling `closeSubscription` with `{delete: true}`.
 
 
 ## Glossary
@@ -150,7 +152,7 @@ Cancel the subscription.  Same as calling `openSubscription` with `{delete: true
 *topic* unique name that identifies a _message bus_; a message "channel"
 .BR
 
-*message passing* is similar to _pubsub_ but with just one sender and one receiver
+*message passing* communication method similar to _pubsub_ but with just one sender and one receiver
 .BR
 *send* message passing analogue to _publish_
 .BR
