@@ -7,7 +7,7 @@
   "main": "qpubs.js",
 
   "repository": {"type": "git", "url": "git://github.com/andrasq/node-qpubs"},
-  "readme": "see README.md in the repo",
+  "readme": "see README.md",
   "files": ["qubs.js", "qsubs.js", "README.md"],
 
   "dependencies": {

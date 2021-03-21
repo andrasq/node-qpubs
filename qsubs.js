@@ -19,6 +19,8 @@ function QSubs( dirname, qpubs, fifoFactory ) {
     this.dirname = dirname;
     this.indexfile = dirname + '/index.json';
     this.needFifoDir = true;
+    this.fifoNamePrefix = 'f.';
+    this.fifoNameRegex = /^f.(.*)$/;
 
     this.qpubs = qpubs;
     this.fifoFactory = fifoFactory;
@@ -28,13 +30,14 @@ function QSubs( dirname, qpubs, fifoFactory ) {
     this.appenders = {};
     this.deliverers = {};
 }
+QSubs.prototype.makeFifoName = function makeFifoName(id) { return this.dirname + '/' + this.fifoNamePrefix + id };
 
 /*
  * Resubscribe to all registered subscriptions found in index.json
  * Typically called when restarting a stopped subscription service.
  */
 QSubs.prototype.loadSubscriptions = function loadSubscriptions( callback ) {
-    var fifoPatt = /^f\.(.*)$/;
+    var fifoPatt = this.fifoNameRegex;
     this.subscriptions = this.loadIndex().subscriptions;
     var subIds = Object.keys(this.subscriptions);
     // await N+1 calls, to run callback even if zero subscriptions
@@ -65,7 +68,7 @@ QSubs.prototype.createSubscription = function createSubscription( topic, subId, 
 
     if (this.needFifoDir) { this.mkdir_p(this.dirname); this.needFifoDir = false }
     // TODO: maybe hash to 2^N subdirs, eg 32
-    fifo = this.fifoFactory.create(this.dirname + '/f.' + subId);
+    fifo = this.fifoFactory.create(this.makeFifoName(subId));
     this.fifos[subId] = fifo;
     this.subscriptions[subId] = topic;
 
@@ -97,8 +100,8 @@ QSubs.prototype.deleteSubscription = function deleteSubscription( topic, subId, 
     this.fifos[subId] = undefined;
     this.subscriptions[subId] = undefined;
     fifo.close();
-    try { fs.unlinkSync(this.dirname + '/f.' + subId) } catch (e) {}
-    try { fs.unlinkSync(this.dirname + '/f.' + subId + '.hd') } catch (e) {}
+    try { fs.unlinkSync(this.makeFifoName(subId)) } catch (e) {}
+    try { fs.unlinkSync(this.makeFifoName(subId + '.hd')) } catch (e) {}
     this.saveIndex(function(err) {
         callback(err, subId);
     })
