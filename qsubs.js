@@ -73,13 +73,12 @@ QSubs.prototype.createSubscription = function createSubscription( topic, subId, 
     this.subscriptions[subId] = topic;
 
     var self = this;
-    var listener = function(message, cb) {
+    var listener = function qsubListener(message, cb) {
         var m = self.serializeMessage(message);
         if (!m) return cb(new Error('unable to serialize message'));
         fifo.putline(m);
         fifo.fflush(cb);
         // TODO: batch calls, flush less often
-        cb();
     }
     this.appenders[subId] = listener;
     this.qpubs.listen(topic, listener);
@@ -221,7 +220,7 @@ QSubs.prototype.mkdir_p = function mkdir_p( dirname ) {
 // stringify the message to a newline terminated string, else return falsy
 QSubs.prototype.serializeMessage = function serializeMessage( m ) {
     if (typeof m === 'string' || Buffer.isBuffer(m)) return m;
-    try { return JSON.stringify(m) + '\n' } catch (e) { return '' }
+    try { return JSON.stringify(m) + '\n' } catch (e) { return '[Circular]' }
 }
 
 QSubs.prototype = toStruct(QSubs.prototype);

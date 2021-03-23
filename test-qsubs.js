@@ -15,7 +15,7 @@ module.exports = {
 
     beforeEach: function() {
         this.mockPubs = { listen: noop, unlisten: noop };
-        this.fifoFactory = { create: function(file, opts) { return new QFifo(file, opts) } };
+        this.fifoFactory = { create: function(file) { return new QFifo(file, { flag: 'r+' }) } };
         this.mockFifoFactory = { create: function(file, opts) {
             return {
                 open: function() {},
