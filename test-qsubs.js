@@ -156,16 +156,16 @@ module.exports = {
             })
         },
 
-        'pubsub listener appends to fifo': function(t) {
+        'pubsub listener appends serializable messages to fifo': function(t) {
             var uut = this.uut;
             uut.openSubscription('topic-1', 'sub-1', function(err) {
+                var circularObject = {}; circularObject.self = circularObject;
                 var fifo = uut.fifos['sub-1'];
                 var spy = t.stub(fifo, 'putline');
                 var spyFlush = t.stub(fifo, 'fflush');
                 uut.appenders['sub-1']('message-1\n', noop);
+                uut.appenders['sub-1'](circularObject, noop);
                 uut.appenders['sub-1']('message-2\n', noop);
-                var invalidObject = {}; invalidObject.self = invalidObject;
-                uut.appenders['sub-1'](invalidObject, noop);
                 t.equal(spy.callCount, 2);
                 t.deepEqual(spy.args, [ [ 'message-1\n' ], [ 'message-2\n' ] ]);
                 t.done();
@@ -334,9 +334,9 @@ module.exports = {
                 t.done();
             },
 
-            'returns falsy if unable to serialize': function(t) {
+            'returns undefined if unable to serialize': function(t) {
                 var o = {a: 1}; o.o = o;
-                t.equal(this.uut.serializeMessage(o), '');
+                t.strictEqual(this.uut.serializeMessage(o), undefined);
                 t.done();
             },
         },

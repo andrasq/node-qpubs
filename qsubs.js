@@ -220,7 +220,7 @@ QSubs.prototype.mkdir_p = function mkdir_p( dirname ) {
 // stringify the message to a newline terminated string, else return falsy
 QSubs.prototype.serializeMessage = function serializeMessage( m ) {
     if (typeof m === 'string' || Buffer.isBuffer(m)) return m;
-    try { return JSON.stringify(m) + '\n' } catch (e) { return '[Circular]' }
+    try { return JSON.stringify(m) + '\n' } catch (e) { }
 }
 
 QSubs.prototype = toStruct(QSubs.prototype);
