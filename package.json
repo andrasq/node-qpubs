@@ -1,6 +1,6 @@
 {
   "name": "qpubs",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "lean pub-sub engine",
   "license": "Apache-2.0",
   "author": "andrasq",
@@ -12,7 +12,7 @@
 
   "dependencies": {
     "microrest": "0.6.4",
-    "qfifo": "git://github.com/andrasq/node-qfifo#0.6.0",
+    "qfifo": "git://github.com/andrasq/node-qfifo#0.6.2",
     "qibl": "1.7.3",
     "qrpc": "1.1.6"
   },

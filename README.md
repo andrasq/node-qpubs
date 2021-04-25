@@ -92,18 +92,6 @@ Service Api
 - /ignore?route
 - /emit?route,value
 
-### Server Qrpc Routes
-
-    qrpc.connect(port, host, function() {
-        qrpc.call('listen', function(err, msg) {
-            console.log("received message:", msg);
-            // => "received message: test message"
-        })
-        qrpc.call('emit', route, function(err) {
-            // message sent
-        })
-    }
-
 
 Design Notes
 ------------
@@ -115,7 +103,6 @@ Design Notes
 - all messages must be tagged with a unique id, saved to journal-in with id, saved to journal-out with id
   (after crash, restart loads the journal-in, subtracts journal-out, and re-processes the difference)
 - journal is written in small bursts under an flock mutex
-- ? limit on max payload? (ties up journal, etc)
 - checkoint journal in batches every .01 sec
 - acknowledge emit call after checkpoint
 - messages are matched by a prefix/suffix matcher (build two matching regexes, keep in prefix hash/suffix hash)
@@ -129,6 +116,7 @@ Todo
 - think about incremental checksumming, both front-to-back and back-to-front
 - time out listener callbacks
 - stateful, durable message stream subscribe/unsubscribe (with pluggable fifos)
+- ? limit on max payload? (ties up journal, etc)
 
 
 Changelog

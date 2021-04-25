@@ -133,9 +133,9 @@ QSubs.prototype.openSubscription = function openSubscription( topic, subId, opti
         // TODO: allow multiple listeners, round-robin distribute messages
         if (self.deliverers[subId]) return callback(new Error(subId + ': already listening'));
 
-        var retry = new Retry();
+        var retryDelay = linearBackoff(100, 5000);
         var fifo = self.fifos[subId];
-        var batchTimer;
+        var batchTimer = null;
 
         var lines = '';
         function deliverLine(line) {
@@ -146,11 +146,12 @@ QSubs.prototype.openSubscription = function openSubscription( topic, subId, opti
         };
         function deliverBatch() {
             clearTimeout(batchTimer);
+            batchTimer = null;
             fifo.pause();
             handler(lines, function(err) {
                 // wait for the handler to ack receipt before advancing past the lines
                 if (err) return setTimeout(function() { deliver('') }, retry.delay());
-                fifo.rsync(function(err) {
+                else fifo.rsync(function(err) {
 // FIXME: fifo errors are fatal, fifo is broken, should close it
                     if (err) { self.closeSubscription(topic, subId, function(){}); return }
                     lines = '';
@@ -190,13 +191,9 @@ QSubs.prototype.closeSubscription = function closeSubscription( topic, subId, op
 }
 
 // bounded linear backoff
-function Retry( ) {
-    this.maxDelay = 5000;
-    this.addedDelay = 100;
-    this.backoff = 0;
-    this.delay = function delay() {
-        return this.backoff >= this.maxDelay ? this.maxDelay : this.backoff += this.addedDelay;
-    }
+function linearBackoff( step, limit ) {
+    var backoff = 0;
+    return function() { return backoff >= limit ? limit : back += step }
 }
 
 // Read and return the saved index file.

@@ -1,6 +1,7 @@
 'use strict';
 
 var fs = require('fs');
+var QPubs = require('./qpubs');
 var QSubs = require('./qsubs');
 var QFifo = require('qfifo');
 
@@ -171,6 +172,41 @@ module.exports = {
                 t.done();
             })
         },
+
+        'end-to-end': {
+            'subscriber handler is called with published messages': function(t) {
+                var qpubs = new QPubs();
+                var fifoFactory = { create: function(file) { return new QFifo(file, { flag: 'a+' }) } };
+                var qsubs = new QSubs(this.dirname, qpubs, fifoFactory);
+                var messages = [];
+                var callCount = 0;
+                qsubs.openSubscription(
+                    'topic-1', 'sub-9', {},
+                    function(lines, cb) {
+                        callCount += 1;
+                        cb();
+                        if (callCount === 1) {
+                            // first two lines should have been batched
+                            t.equal(lines, 'line1\nline22\n');
+                        }
+                        if (callCount === 2) {
+                            // third line should arrive separately
+                            t.equal(lines, 'line333\n');
+                            t.done();
+                        }
+                    },
+                    function(err) {
+// FIXME: race: test sometimes does not finish! times out, messages not received
+                        // publish 3 messagse to the topic
+                        // line1 published immediately
+                        qpubs.publish('topic-1', 'line1');
+                        // line2 published soon, batched with line1
+                        setTimeout(function() { qpubs.publish('topic-1', 'line22') }, 2);
+                        // line3 published after first batch already sent
+                        setTimeout(function() { qpubs.publish('topic-1', 'line333') }, 10);
+                    }
+                )
+            },
 
         'edge cases': {
             'uses existing fifo if already subscribed': function(t) {
