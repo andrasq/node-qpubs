@@ -61,6 +61,7 @@ QPubs.prototype.unlisten = function unlisten( topic, func ) {
 
 QPubs.prototype.emit = function emit( topic, value, callback ) {
     var ix = 0, ix2a, ix2b, sep = this.separator, len = topic.length;
+    // nexpect is incremented in each listenEmit for the number of listeners notified
     var state = { nexpect: 1, ndone: 0, error: null, done: null };
     state.done = _awaitCallbacks(1, callback || _noop, state);
     var liscounts = this.substringListenerCounts;

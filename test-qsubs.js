@@ -32,6 +32,10 @@ module.exports = {
     },
 
     afterEach: function() {
+        var dirname = this.dirname;
+        new QFifo(dirname).matchFiles(dirname, /f\..*/, function(err, files) {
+            if (!err) for (var i = 0; i < files.length; i++) fs.unlinkSync(dirname + '/' + files[i]);
+        })
         try { fs.unlinkSync(this.dirname + '/index.json') } catch (e) {}
         try { fs.rmdirSync(this.dirname) } catch (e) {}
     },
@@ -207,6 +211,21 @@ module.exports = {
                     }
                 )
             },
+
+            'publish returns ENOENT if read-mode fifo appended': function(t) {
+                var qpubs = new QPubs();
+                var fifoFactory = { create: function(file) { return new QFifo(file, { flag: 'r+' }) } };
+                var qsubs = new QSubs(this.dirname, qpubs, fifoFactory);
+                qsubs.openSubscription('topic-2', 'sub-id', {}, function(message, cb) { cb() }, function(err) {
+                    t.ifError(err);
+                    qpubs.publish('topic-2', 'some message', function(err) {
+                        t.ok(err);
+                        t.equal(err.code, 'ENOENT');
+                        t.done();
+                    })
+                })
+            },
+        },
 
         'edge cases': {
             'uses existing fifo if already subscribed': function(t) {

@@ -12,7 +12,7 @@
 
   "dependencies": {
     "microrest": "0.6.4",
-    "qfifo": "git://github.com/andrasq/node-qfifo#0.6.2",
+    "qfifo": "git://github.com/andrasq/node-qfifo#0.6.3",
     "qibl": "1.7.3",
     "qrpc": "1.1.6"
   },

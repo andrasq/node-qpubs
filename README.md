@@ -122,6 +122,7 @@ Todo
 Changelog
 ---------
 
+- 0.4.2 - use newer qfifo for bugfix, remove fifo files after tests
 - 0.4.1 - add a callback to loadSubscriptions, pass deliver to closeSubscription
 - 0.4.0 - refactor qsubs into create/open/close/delete subscription
 - 0.1.2 - allow listeners to take callbacks, faster emit
